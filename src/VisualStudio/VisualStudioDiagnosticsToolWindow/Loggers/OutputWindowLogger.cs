@@ -8,7 +8,6 @@ using System;
 using System.Threading;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.Shell;
@@ -23,23 +22,13 @@ namespace Microsoft.CodeAnalysis.Internal.Log
     {
         private readonly Func<FunctionId, bool> _isEnabledPredicate;
 
-        public OutputWindowLogger()
-            : this((Func<FunctionId, bool>)null)
-        {
-        }
-
-        public OutputWindowLogger(IGlobalOptionService optionService)
-            : this(Logger.GetLoggingChecker(optionService))
-        {
-        }
-
         public OutputWindowLogger(Func<FunctionId, bool> isEnabledPredicate)
         {
             _isEnabledPredicate = isEnabledPredicate;
         }
 
         public bool IsEnabled(FunctionId functionId)
-            => _isEnabledPredicate == null || _isEnabledPredicate(functionId);
+            => _isEnabledPredicate(functionId);
 
         public void Log(FunctionId functionId, LogMessage logMessage)
         {

@@ -5,23 +5,20 @@
 Imports System.Composition
 Imports System.Diagnostics.CodeAnalysis
 Imports Microsoft.CodeAnalysis.CodeFixes
+Imports Microsoft.CodeAnalysis.Formatting
 Imports Microsoft.CodeAnalysis.Formatting.Rules
-Imports Microsoft.CodeAnalysis.LanguageServices
+Imports Microsoft.CodeAnalysis.LanguageService
 Imports Microsoft.CodeAnalysis.Operations
 Imports Microsoft.CodeAnalysis.Simplification
 Imports Microsoft.CodeAnalysis.UseConditionalExpression
-Imports Microsoft.CodeAnalysis.VisualBasic.LanguageServices
+Imports Microsoft.CodeAnalysis.VisualBasic.CodeGeneration
+Imports Microsoft.CodeAnalysis.VisualBasic.Formatting
+Imports Microsoft.CodeAnalysis.VisualBasic.LanguageService
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 
-#If CODE_STYLE Then
-Imports Microsoft.CodeAnalysis.Formatting
-Imports Microsoft.CodeAnalysis.VisualBasic.Formatting
-#End If
-
 Namespace Microsoft.CodeAnalysis.VisualBasic.UseConditionalExpression
-
     <ExportCodeFixProvider(LanguageNames.VisualBasic, Name:=PredefinedCodeFixProviderNames.UseConditionalExpressionForAssignment), [Shared]>
-    Friend Class VisualBasicUseConditionalExpressionForAssignmentCodeFixProvider
+    Friend NotInheritable Class VisualBasicUseConditionalExpressionForAssignmentCodeFixProvider
         Inherits AbstractUseConditionalExpressionForAssignmentCodeFixProvider(Of
             StatementSyntax, MultiLineIfBlockSyntax, LocalDeclarationStatementSyntax, VariableDeclaratorSyntax, ExpressionSyntax, TernaryConditionalExpressionSyntax)
 
@@ -59,10 +56,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UseConditionalExpression
             Return statement
         End Function
 
-#If CODE_STYLE Then
-        Protected Overrides Function GetSyntaxFormattingService() As ISyntaxFormattingService
-            Return VisualBasicSyntaxFormattingService.Instance
-        End Function
-#End If
+        Protected Overrides ReadOnly Property SyntaxFormatting As ISyntaxFormatting = VisualBasicSyntaxFormatting.Instance
     End Class
 End Namespace

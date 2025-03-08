@@ -111,11 +111,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
         }
 
-        internal static bool HasUnsafeParameter(this Symbol member)
+        internal static bool HasParameterContainingPointerType(this Symbol member)
         {
             foreach (var parameterType in member.GetParameterTypes())
             {
-                if (parameterType.Type.IsUnsafe())
+                if (parameterType.Type.ContainsPointerOrFunctionPointer())
                 {
                     return true;
                 }
@@ -426,7 +426,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 }
 
                 foundParameterlessCtor = true;
-                result = constructor.IsDefaultValueTypeConstructor(requireZeroInit: true);
+                result = constructor.IsDefaultValueTypeConstructor();
             }
 
             return result;
@@ -440,35 +440,22 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             return method.MethodKind == MethodKind.Constructor && method.ParameterCount == 0;
         }
 
+#nullable enable
         /// <summary>
-        /// Returns true if the method is the default constructor synthesized for struct types, and
-        /// if <paramref name="requireZeroInit"/> is true, the constructor simply zero-inits the instance.
+        /// Returns true if the method is the default constructor synthesized for struct types.
         /// If the containing struct type is from metadata, the default constructor is synthesized when there
         /// is no accessible parameterless constructor. (That synthesized constructor from metadata zero-inits
         /// the instance.) If the containing struct type is from source, the parameterless constructor is synthesized
-        /// if there is no explicit parameterless constructor. And if the source type has no field initializers, or
-        /// the type has field initializers and at least one explicit constructor with parameters, the synthesized
+        /// if there is no explicit parameterless constructor, and the synthesized
         /// parameterless constructor simply zero-inits the instance (and is not emitted).
         /// </summary>
-        internal static bool IsDefaultValueTypeConstructor(this MethodSymbol method, bool requireZeroInit)
+        internal static bool IsDefaultValueTypeConstructor(this MethodSymbol method)
         {
-            if (method.IsImplicitlyDeclared &&
-                method.ContainingType.IsValueType &&
-                method.IsParameterlessConstructor())
-            {
-                if (!requireZeroInit)
-                {
-                    return true;
-                }
-                var containingType = method.ContainingType.OriginalDefinition;
-                var constructors = containingType.InstanceConstructors;
-                // If there are field initializers and an explicit constructor with parameters
-                // (that is, more than one constructor), the implicit parameterless constructor
-                // is treated as the zero-init constructor and does not execute field initializers.
-                return constructors.Length > 1 || !containingType.HasFieldInitializers();
-            }
-            return false;
+            return method.IsImplicitlyDeclared &&
+                method.ContainingType?.IsValueType == true &&
+                method.IsParameterlessConstructor();
         }
+#nullable disable
 
         /// <summary>
         /// Indicates whether the method should be emitted.
@@ -476,7 +463,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         internal static bool ShouldEmit(this MethodSymbol method)
         {
             // Don't emit the default value type constructor - the runtime handles that
-            if (method.IsDefaultValueTypeConstructor(requireZeroInit: true))
+            if (method.IsDefaultValueTypeConstructor())
             {
                 return false;
             }
@@ -487,7 +474,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
 
             // Don't emit partial methods without an implementation part.
-            if (method.IsPartialMethod() && method.PartialImplementationPart is null)
+            if (method.IsPartialMember() && method.PartialImplementationPart is null)
             {
                 return false;
             }
@@ -558,23 +545,67 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
         }
 
-        internal static bool IsPartialMethod(this Symbol member)
+        internal static bool IsPartialMember(this Symbol member)
         {
-            var sms = member as SourceMemberMethodSymbol;
-            return sms?.IsPartial == true;
+            Debug.Assert(member.IsDefinition);
+            return member
+                is SourceOrdinaryMethodSymbol { IsPartial: true }
+                or SourcePropertySymbol { IsPartial: true }
+                or SourcePropertyAccessorSymbol { IsPartial: true }
+                or SourceConstructorSymbol { IsPartial: true }
+                or SourceEventSymbol { IsPartial: true }
+                or SourceEventAccessorSymbol { IsPartial: true };
         }
 
         internal static bool IsPartialImplementation(this Symbol member)
         {
-            var sms = member as SourceOrdinaryMethodSymbol;
-            return sms?.IsPartialImplementation == true;
+            Debug.Assert(member.IsDefinition);
+            return member
+                is SourceOrdinaryMethodSymbol { IsPartialImplementation: true }
+                or SourcePropertySymbol { IsPartialImplementation: true }
+                or SourcePropertyAccessorSymbol { IsPartialImplementation: true }
+                or SourceConstructorSymbol { IsPartialImplementation: true }
+                or SourceEventSymbol { IsPartialImplementation: true }
+                or SourceEventAccessorSymbol { IsPartialImplementation: true };
         }
 
         internal static bool IsPartialDefinition(this Symbol member)
         {
-            var sms = member as SourceOrdinaryMethodSymbol;
-            return sms?.IsPartialDefinition == true;
+            Debug.Assert(member.IsDefinition);
+            return member
+                is SourceOrdinaryMethodSymbol { IsPartialDefinition: true }
+                or SourcePropertySymbol { IsPartialDefinition: true }
+                or SourcePropertyAccessorSymbol { IsPartialDefinition: true }
+                or SourceConstructorSymbol { IsPartialDefinition: true }
+                or SourceEventSymbol { IsPartialDefinition: true }
+                or SourceEventAccessorSymbol { IsPartialDefinition: true };
         }
+
+#nullable enable
+        internal static Symbol? GetPartialImplementationPart(this Symbol member)
+        {
+            Debug.Assert(member.IsDefinition);
+            return member switch
+            {
+                MethodSymbol method => method.PartialImplementationPart,
+                SourcePropertySymbol property => property.PartialImplementationPart,
+                SourceEventSymbol ev => ev.PartialImplementationPart,
+                _ => null,
+            };
+        }
+
+        internal static Symbol? GetPartialDefinitionPart(this Symbol member)
+        {
+            Debug.Assert(member.IsDefinition);
+            return member switch
+            {
+                MethodSymbol method => method.PartialDefinitionPart,
+                SourcePropertySymbol property => property.PartialDefinitionPart,
+                SourceEventSymbol ev => ev.PartialDefinitionPart,
+                _ => null,
+            };
+        }
+#nullable disable
 
         internal static bool ContainsTupleNames(this Symbol member)
         {
@@ -582,7 +613,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             {
                 case SymbolKind.Method:
                     var method = (MethodSymbol)member;
-                    return method.ReturnType.ContainsTupleNames() || method.Parameters.Any(p => p.Type.ContainsTupleNames());
+                    return method.ReturnType.ContainsTupleNames() || method.Parameters.Any(static p => p.Type.ContainsTupleNames());
                 case SymbolKind.Property:
                     return ((PropertySymbol)member).Type.ContainsTupleNames();
                 case SymbolKind.Event:

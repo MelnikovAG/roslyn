@@ -111,7 +111,7 @@ namespace CSharpSyntaxGenerator
         protected string Join(string separator, params object[] values)
             => string.Join(separator, values.SelectMany(v => (v switch
             {
-                string s => new[] { s },
+                string s => [s],
                 IEnumerable<string> ss => ss,
                 _ => throw new InvalidOperationException("Join must be passed strings or collections of strings")
             }).Where(s => s != "")));
@@ -385,7 +385,7 @@ namespace CSharpSyntaxGenerator
                 }).Single(f => f.Name == field.Name);
             }
 
-            return field.Kinds;
+            return field.Kinds.Distinct().ToList();
         }
 
         #endregion Node helpers

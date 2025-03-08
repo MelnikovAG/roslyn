@@ -13,6 +13,8 @@
 param(
   [string]$configuration = "Debug",
   [switch]$enableDumps = $false,
+  [string]$bootstrapDir = "",
+  [switch]$ci = $false,
   [switch]$help)
 
 Set-StrictMode -version 2.0
@@ -23,57 +25,65 @@ function Print-Usage() {
   Write-Host "  -configuration            Build configuration ('Debug' or 'Release')"
 }
 
+$docBranch = "main"
 try {
   if ($help) {
     Print-Usage
     exit 0
   }
 
-  $ci = $true
-
   . (Join-Path $PSScriptRoot "build-utils.ps1")
   Push-Location $RepoRoot
+  $prepareMachine = $ci
+
+  # If we're running in a PR, we want to use the documentation from the branch that is being 
+  # merged into, not necessarily the documentation in main
+  if (Test-Path env:SYSTEM_PULLREQUEST_TARGETBRANCH) {
+    $docBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+  }
 
   if ($enableDumps) {
     $key = "HKLM:\\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"
     New-Item -Path $key -ErrorAction SilentlyContinue
     New-ItemProperty -Path $key -Name 'DumpType' -PropertyType 'DWord' -Value 2 -Force
-    New-ItemProperty -Path $key -Name 'DumpCount' -PropertyType 'DWord' -Value 2 -Force
+    New-ItemProperty -Path $key -Name 'DumpCount' -PropertyType 'DWord' -Value 10 -Force
     New-ItemProperty -Path $key -Name 'DumpFolder' -PropertyType 'String' -Value $LogDir -Force
   }
 
-  # Verify no PROTOTYPE marker left in main
-  if ($env:SYSTEM_PULLREQUEST_TARGETBRANCH -eq "main") {
-    Write-Host "Checking no PROTOTYPE markers in source"
-    $prototypes = Get-ChildItem -Path src, eng, scripts -Exclude *.dll,*.exe,*.pdb,*.xlf,test-build-correctness.ps1 -Recurse | Select-String -Pattern 'PROTOTYPE' -CaseSensitive -SimpleMatch
-    if ($prototypes) {
-      Write-Host "Found PROTOTYPE markers in source:"
-      Write-Host $prototypes
-      throw "PROTOTYPE markers disallowed in compiler source"
-    }
+  if ($bootstrapDir -eq "") {
+    Write-Host "Building bootstrap compiler"
+    $bootstrapDir = Join-Path $ArtifactsDir (Join-Path "bootstrap" "correctness")
+    & eng/make-bootstrap.ps1 -output $bootstrapDir -ci:$ci
+    Test-LastExitCode
   }
 
   Write-Host "Building Roslyn"
-  Exec-Block { & (Join-Path $PSScriptRoot "build.ps1") -restore -build -bootstrap -bootstrapConfiguration:Debug -ci:$ci -runAnalyzers:$true -configuration:$configuration -pack -binaryLog -useGlobalNuGetCache:$false -warnAsError:$true -properties "/p:RoslynEnforceCodeStyle=true"}
+  & eng/build.ps1 -restore -build -bootstrapDir:$bootstrapDir -ci:$ci -prepareMachine:$prepareMachine -runAnalyzers:$true -configuration:$configuration -pack -binaryLog -useGlobalNuGetCache:$false -warnAsError:$true -properties:"/p:RoslynEnforceCodeStyle=true"
+  Test-LastExitCode
+
+  Subst-TempDir
 
   # Verify the state of our various build artifacts
   Write-Host "Running BuildBoss"
   $buildBossPath = GetProjectOutputBinary "BuildBoss.exe"
-  Exec-Console $buildBossPath "-r `"$RepoRoot/`" -c $configuration" -p Roslyn.sln
+  Exec-Command $buildBossPath "-r `"$RepoRoot/`" -c $configuration -p Roslyn.sln"
   Write-Host ""
 
   # Verify the state of our generated syntax files
   Write-Host "Checking generated compiler files"
-  Exec-Block { & (Join-Path $PSScriptRoot "generate-compiler-code.ps1") -test -configuration:$configuration }
-  Exec-Console dotnet "tool run dotnet-format . --include-generated --include src/Compilers/CSharp/Portable/Generated/ src/Compilers/VisualBasic/Portable/Generated/ src/ExpressionEvaluator/VisualBasic/Source/ResultProvider/Generated/ --check -f"
+  & eng/generate-compiler-code.ps1 -test -configuration:$configuration
+  Test-LastExitCode
+  Exec-DotNet "tool run dotnet-format whitespace . --folder --include-generated --include src/Compilers/CSharp/Portable/Generated/ src/Compilers/VisualBasic/Portable/Generated/ src/ExpressionEvaluator/VisualBasic/Source/ResultProvider/Generated/ --verify-no-changes"
   Write-Host ""
 
-  exit 0
+  ExitWithExitCode 0
 }
-catch [exception] {
+catch {
   Write-Host $_
   Write-Host $_.Exception
-  exit 1
+  Write-Host $_.ScriptStackTrace
+  Write-Host "##vso[task.logissue type=error]How to investigate bootstrap failures: https://github.com/dotnet/roslyn/blob/$($docBranch)/docs/contributing/bootstrap-builds.md#Investigating"
+  ExitWithExitCode 1
 }
 finally {
   if ($enableDumps) {
@@ -82,5 +92,7 @@ finally {
     Remove-ItemProperty -Path $key -Name 'DumpCount'
     Remove-ItemProperty -Path $key -Name 'DumpFolder'
   }
+
+  Unsubst-TempDir
   Pop-Location
 }
