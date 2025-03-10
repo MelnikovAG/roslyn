@@ -5,104 +5,115 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.ErrorReporting;
+using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Internal.Log;
 using Microsoft.CodeAnalysis.Remote.Diagnostics;
 using Microsoft.CodeAnalysis.Telemetry;
 using Microsoft.VisualStudio.LanguageServices.Telemetry;
 using Microsoft.VisualStudio.Telemetry;
-using Microsoft.CodeAnalysis.Notification;
-using RoslynLogger = Microsoft.CodeAnalysis.Internal.Log.Logger;
 using Roslyn.Utilities;
-using Microsoft.CodeAnalysis.ErrorReporting;
+using RoslynLogger = Microsoft.CodeAnalysis.Internal.Log.Logger;
 
-namespace Microsoft.CodeAnalysis.Remote
+namespace Microsoft.CodeAnalysis.Remote;
+
+internal sealed partial class RemoteProcessTelemetryService(
+    BrokeredServiceBase.ServiceConstructionArguments arguments)
+    : BrokeredServiceBase(arguments), IRemoteProcessTelemetryService
 {
-    internal sealed partial class RemoteProcessTelemetryService : BrokeredServiceBase, IRemoteProcessTelemetryService
+    internal sealed class Factory : FactoryBase<IRemoteProcessTelemetryService>
     {
-        internal sealed class Factory : FactoryBase<IRemoteProcessTelemetryService>
-        {
-            protected override IRemoteProcessTelemetryService CreateService(in ServiceConstructionArguments arguments)
-                => new RemoteProcessTelemetryService(arguments);
-        }
+        protected override IRemoteProcessTelemetryService CreateService(in ServiceConstructionArguments arguments)
+            => new RemoteProcessTelemetryService(arguments);
+    }
 
-#if DEBUG
-        private readonly CancellationTokenSource _shutdownCancellationSource = new();
+    private readonly CancellationTokenSource _shutdownCancellationSource = new();
 
 #pragma warning disable IDE0052 // Remove unread private members
-        private PerformanceReporter? _performanceReporter;
+    private PerformanceReporter? _performanceReporter;
 #pragma warning restore
-#endif
-        public RemoteProcessTelemetryService(ServiceConstructionArguments arguments)
-            : base(arguments)
-        {
-        }
 
-        /// <summary>
-        /// Remote API. Initializes ServiceHub process global state.
-        /// </summary>
-        public ValueTask InitializeTelemetrySessionAsync(int hostProcessId, string serializedSession, CancellationToken cancellationToken)
+    /// <summary>
+    /// Remote API. Initializes ServiceHub process global state.
+    /// </summary>
+    public ValueTask InitializeTelemetrySessionAsync(int hostProcessId, string serializedSession, bool logDelta, CancellationToken cancellationToken)
+    {
+        return RunServiceAsync(cancellationToken =>
         {
-            return RunServiceAsync(cancellationToken =>
+            var services = GetWorkspace().Services;
+
+            var telemetryService = (RemoteWorkspaceTelemetryService)services.GetRequiredService<IWorkspaceTelemetryService>();
+            var telemetrySession = new TelemetrySession(serializedSession);
+            telemetrySession.Start();
+
+            telemetryService.InitializeTelemetrySession(telemetrySession, logDelta);
+            telemetryService.RegisterUnexpectedExceptionLogger(TraceLogger);
+            FaultReporter.InitializeFatalErrorHandlers();
+
+            // log telemetry that service hub started
+            RoslynLogger.Log(FunctionId.RemoteHost_Connect, KeyValueLogMessage.Create(m =>
             {
-                var services = GetWorkspace().Services;
+                m["Host"] = hostProcessId;
+                m["Framework"] = RuntimeInformation.FrameworkDescription;
+            }));
 
-                var telemetryService = (RemoteWorkspaceTelemetryService)services.GetRequiredService<IWorkspaceTelemetryService>();
-                var telemetrySession = new TelemetrySession(serializedSession);
-                telemetrySession.Start();
-
-                // adds property to each event reported from this session
-                telemetrySession.SetSharedProperty("VS.Core.Version", Environment.GetEnvironmentVariable("VisualStudioVersion"));
-
-                telemetryService.InitializeTelemetrySession(telemetrySession);
-                telemetryService.RegisterUnexpectedExceptionLogger(TraceLogger);
-                WatsonReporter.InitializeFatalErrorHandlers();
-
-                // log telemetry that service hub started
-                RoslynLogger.Log(FunctionId.RemoteHost_Connect, KeyValueLogMessage.Create(m => m["Host"] = hostProcessId));
-
-#if DEBUG
-                // start performance reporter
-                var diagnosticAnalyzerPerformanceTracker = services.GetService<IPerformanceTrackerService>();
-                if (diagnosticAnalyzerPerformanceTracker != null)
-                {
-                    var globalOperationNotificationService = services.GetService<IGlobalOperationNotificationService>();
-                    _performanceReporter = new PerformanceReporter(TraceLogger, telemetrySession, diagnosticAnalyzerPerformanceTracker, globalOperationNotificationService, _shutdownCancellationSource.Token);
-                }
-#endif
-                return ValueTaskFactory.CompletedTask;
-            }, cancellationToken);
-        }
-
-        /// <summary>
-        /// Remote API.
-        /// </summary>
-        public ValueTask EnableLoggingAsync(ImmutableArray<string> loggerTypeNames, ImmutableArray<FunctionId> functionIds, CancellationToken cancellationToken)
-        {
-            return RunServiceAsync(cancellationToken =>
+            // start performance reporter
+            var diagnosticAnalyzerPerformanceTracker = services.GetService<IPerformanceTrackerService>();
+            if (diagnosticAnalyzerPerformanceTracker != null)
             {
-                var functionIdsSet = new HashSet<FunctionId>(functionIds);
-                bool logChecker(FunctionId id) => functionIdsSet.Contains(id);
-
-                // we only support 2 types of loggers
-                SetRoslynLogger(loggerTypeNames, () => new EtwLogger(logChecker));
-                SetRoslynLogger(loggerTypeNames, () => new TraceLogger(logChecker));
-
-                return ValueTaskFactory.CompletedTask;
-            }, cancellationToken);
-        }
-
-        private static void SetRoslynLogger<T>(ImmutableArray<string> loggerTypes, Func<T> creator) where T : ILogger
-        {
-            if (loggerTypes.Contains(typeof(T).Name))
-            {
-                RoslynLogger.SetLogger(AggregateLogger.AddOrReplace(creator(), RoslynLogger.GetLogger(), l => l is T));
+                // We know in the remote layer that this type must exist.
+                _performanceReporter = new PerformanceReporter(telemetrySession, diagnosticAnalyzerPerformanceTracker, _shutdownCancellationSource.Token);
             }
-            else
-            {
-                RoslynLogger.SetLogger(AggregateLogger.Remove(RoslynLogger.GetLogger(), l => l is T));
-            }
+
+            return ValueTaskFactory.CompletedTask;
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Remote API.
+    /// </summary>
+    public ValueTask EnableLoggingAsync(ImmutableArray<string> loggerTypeNames, ImmutableArray<FunctionId> functionIds, CancellationToken cancellationToken)
+    {
+        return RunServiceAsync(cancellationToken =>
+        {
+            var functionIdsSet = new HashSet<FunctionId>(functionIds);
+            bool logChecker(FunctionId id) => functionIdsSet.Contains(id);
+
+            // we only support 2 types of loggers
+            SetRoslynLogger(loggerTypeNames, () => new EtwLogger(logChecker));
+            SetRoslynLogger(loggerTypeNames, () => new TraceLogger(logChecker));
+
+            return ValueTaskFactory.CompletedTask;
+        }, cancellationToken);
+    }
+
+    private static void SetRoslynLogger<T>(ImmutableArray<string> loggerTypes, Func<T> creator) where T : ILogger
+    {
+        if (loggerTypes.Contains(typeof(T).Name))
+        {
+            RoslynLogger.SetLogger(AggregateLogger.AddOrReplace(creator(), RoslynLogger.GetLogger(), l => l is T));
         }
+        else
+        {
+            RoslynLogger.SetLogger(AggregateLogger.Remove(RoslynLogger.GetLogger(), l => l is T));
+        }
+    }
+
+    /// <summary>
+    /// Remote API.
+    /// </summary>
+    public ValueTask<int> InitializeAsync(WorkspaceConfigurationOptions options, CancellationToken cancellationToken)
+    {
+        return RunServiceAsync(cancellationToken =>
+        {
+            var service = (RemoteWorkspaceConfigurationService)GetWorkspaceServices().GetRequiredService<IWorkspaceConfigurationService>();
+            service.InitializeOptions(options);
+
+            return ValueTaskFactory.FromResult(Process.GetCurrentProcess().Id);
+        }, cancellationToken);
     }
 }

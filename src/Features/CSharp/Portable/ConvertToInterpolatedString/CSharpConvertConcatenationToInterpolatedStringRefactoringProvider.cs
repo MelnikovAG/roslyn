@@ -6,28 +6,28 @@ using System;
 using System.Composition;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.ConvertToInterpolatedString;
-using Microsoft.CodeAnalysis.CSharp.Shared.Extensions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Host.Mef;
 
-namespace Microsoft.CodeAnalysis.CSharp.ConvertToInterpolatedString
+namespace Microsoft.CodeAnalysis.CSharp.ConvertToInterpolatedString;
+
+[ExportCodeRefactoringProvider(LanguageNames.CSharp, Name = PredefinedCodeRefactoringProviderNames.ConvertConcatenationToInterpolatedString), Shared]
+[method: ImportingConstructor]
+[method: Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
+internal sealed class CSharpConvertConcatenationToInterpolatedStringRefactoringProvider() :
+    AbstractConvertConcatenationToInterpolatedStringRefactoringProvider<ExpressionSyntax>
 {
-    [ExportCodeRefactoringProvider(LanguageNames.CSharp, Name = PredefinedCodeRefactoringProviderNames.ConvertConcatenationToInterpolatedString), Shared]
-    internal class CSharpConvertConcatenationToInterpolatedStringRefactoringProvider :
-        AbstractConvertConcatenationToInterpolatedStringRefactoringProvider<ExpressionSyntax>
+    protected override bool SupportsInterpolatedStringHandler(Compilation compilation)
+        => compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.DefaultInterpolatedStringHandler") != null;
+
+    protected override string GetTextWithoutQuotes(string text, bool isVerbatim, bool isCharacterLiteral)
     {
-        [ImportingConstructor]
-        [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
-        public CSharpConvertConcatenationToInterpolatedStringRefactoringProvider()
-        {
-        }
+        var contents = isVerbatim
+            ? text["@'".Length..^1]
+            : text["'".Length..^1];
 
-        protected override bool SupportsConstantInterpolatedStrings(Document document)
-            => ((CSharpParseOptions)document.Project.ParseOptions!).LanguageVersion.HasConstantInterpolatedStrings();
-
-        protected override string GetTextWithoutQuotes(string text, bool isVerbatim, bool isCharacterLiteral)
-            => isVerbatim
-                ? text.Substring("@'".Length, text.Length - "@''".Length)
-                : text.Substring("'".Length, text.Length - "''".Length);
+        // If we have a '"', we need to escape that double quote accordingly depending on if we're producing a verbatim
+        // or normal string.
+        return isCharacterLiteral && contents is "\"" ? "\\\"" : contents;
     }
 }

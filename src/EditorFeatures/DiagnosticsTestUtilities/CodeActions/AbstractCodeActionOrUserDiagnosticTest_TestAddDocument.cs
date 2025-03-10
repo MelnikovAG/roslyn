@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.Editor.Implementation.Preview;
-using Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces;
+using Microsoft.CodeAnalysis.Test.Utilities;
 using Microsoft.CodeAnalysis.UnitTests;
 using Roslyn.Test.Utilities;
 using Xunit;
@@ -24,12 +24,14 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
             string initialMarkup, string expectedMarkup,
             ImmutableArray<string> expectedContainers,
             string expectedDocumentName,
-            TestParameters parameters = default)
+            TestParameters parameters = null)
         {
+            var ps = parameters ?? TestParameters.Default;
+
             await TestAddDocument(
                 initialMarkup, expectedMarkup,
                 expectedContainers, expectedDocumentName,
-                WithRegularOptions(parameters));
+                WithRegularOptions(ps));
 
             // VB script is not supported:
             if (GetLanguage() == LanguageNames.CSharp)
@@ -37,13 +39,13 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
                 await TestAddDocument(
                     initialMarkup, expectedMarkup,
                     expectedContainers, expectedDocumentName,
-                    WithScriptOptions(parameters));
+                    WithScriptOptions(ps));
             }
         }
 
         protected async Task<Tuple<Solution, Solution>> TestAddDocumentAsync(
             TestParameters parameters,
-            TestWorkspace workspace,
+            EditorTestWorkspace workspace,
             string expectedMarkup,
             string expectedDocumentName,
             ImmutableArray<string> expectedContainers)
@@ -59,25 +61,24 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
             string expectedMarkup,
             ImmutableArray<string> expectedContainers,
             string expectedDocumentName,
-            TestParameters parameters = default)
+            TestParameters parameters = null)
         {
-            using (var workspace = CreateWorkspaceFromOptions(initialMarkup, parameters))
-            {
-                var (_, action) = await GetCodeActionsAsync(workspace, parameters);
-                await TestAddDocument(
-                    workspace, expectedMarkup, expectedContainers,
-                    expectedDocumentName, action);
-            }
+            var ps = parameters ?? TestParameters.Default;
+            using var workspace = CreateWorkspaceFromOptions(initialMarkup, ps);
+            var (_, action) = await GetCodeActionsAsync(workspace, ps);
+            await TestAddDocument(
+                workspace, expectedMarkup, expectedContainers,
+                expectedDocumentName, action);
         }
 
         private async Task<Tuple<Solution, Solution>> TestAddDocument(
-            TestWorkspace workspace,
+            EditorTestWorkspace workspace,
             string expectedMarkup,
             ImmutableArray<string> expectedFolders,
             string expectedDocumentName,
             CodeAction action)
         {
-            var operations = await VerifyActionAndGetOperationsAsync(workspace, action, default);
+            var operations = await VerifyActionAndGetOperationsAsync(workspace, action);
             return await TestAddDocument(
                 workspace,
                 expectedMarkup,
@@ -89,7 +90,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
         }
 
         protected static async Task<Tuple<Solution, Solution>> TestAddDocument(
-            TestWorkspace workspace,
+            EditorTestWorkspace workspace,
             string expected,
             ImmutableArray<CodeActionOperation> operations,
             bool hasProjectChange,
@@ -114,7 +115,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
 
             Assert.NotNull(addedDocument);
 
-            AssertEx.Equal(expectedFolders, addedDocument.Folders);
+            AssertEx.Equal(expectedFolders, addedDocument.Folders.AsEnumerable());
             Assert.Equal(expectedDocumentName, addedDocument.Name);
             var actual = (await addedDocument.GetTextAsync()).ToString();
             Assert.Equal(expected, actual);
@@ -125,10 +126,8 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions
                 // If there is just one document change then we expect the preview to be a WpfTextView
                 var previews = await editHandler.GetPreviewsAsync(workspace, operations, CancellationToken.None);
                 var content = (await previews.GetPreviewsAsync())[0];
-                using (var diffView = content as DifferenceViewerPreview)
-                {
-                    Assert.NotNull(diffView.Viewer);
-                }
+                using var diffView = content as DifferenceViewerPreview;
+                Assert.NotNull(diffView.Viewer);
             }
             else
             {

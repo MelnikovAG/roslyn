@@ -4,7 +4,9 @@
 
 using System.Collections.Immutable;
 using System.Diagnostics;
+using Microsoft.CodeAnalysis.CSharp.Emit;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Symbols
@@ -29,13 +31,17 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     (_, false) => DeclarationModifiers.Protected | DeclarationModifiers.Override
                 },
                 hasInitializer: false,
-                isAutoProperty: false,
+                hasExplicitAccessMod: false,
+                hasAutoPropertyGet: false,
+                hasAutoPropertySet: false,
                 isExpressionBodied: false,
-                isInitOnly: false,
+                accessorsHaveImplementation: true,
+                getterUsesFieldKeyword: false,
+                setterUsesFieldKeyword: false,
                 RefKind.None,
                 PropertyName,
                 indexerNameAttributeLists: new SyntaxList<AttributeListSyntax>(),
-                containingType.Locations[0],
+                containingType.GetFirstLocation(),
                 diagnostics)
         {
             Debug.Assert(!containingType.IsRecordStruct);
@@ -45,13 +51,15 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         public override ImmutableArray<SyntaxReference> DeclaringSyntaxReferences => ImmutableArray<SyntaxReference>.Empty;
 
-        public override SyntaxList<AttributeListSyntax> AttributeDeclarationSyntaxList
-            => new SyntaxList<AttributeListSyntax>();
+        public override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations()
+            => OneOrMany<SyntaxList<AttributeListSyntax>>.Empty;
+
+        protected override SourcePropertySymbolBase? BoundAttributesSource => null;
 
         public override IAttributeTargetSymbol AttributesOwner => this;
 
         protected override Location TypeLocation
-            => ContainingType.Locations[0];
+            => ContainingType.GetFirstLocation();
 
         protected override SourcePropertyAccessorSymbol CreateGetAccessorSymbol(bool isAutoPropertyAccessor, BindingDiagnosticBag diagnostics)
         {
@@ -59,14 +67,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 ContainingType,
                 this,
                 _modifiers,
-                ContainingType.Locations[0],
+                ContainingType.GetFirstLocation(),
                 (CSharpSyntaxNode)((SourceMemberContainerTypeSymbol)ContainingType).SyntaxReferences[0].GetSyntax(),
                 diagnostics);
         }
 
         protected override SourcePropertyAccessorSymbol CreateSetAccessorSymbol(bool isAutoPropertyAccessor, BindingDiagnosticBag diagnostics)
         {
-            throw ExceptionUtilities.Unreachable;
+            throw ExceptionUtilities.Unreachable();
         }
 
         protected override (TypeWithAnnotations Type, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindType(BindingDiagnosticBag diagnostics)
@@ -75,12 +83,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     ImmutableArray<ParameterSymbol>.Empty);
         }
 
-        protected override bool HasPointerTypeSyntactically => false;
-
         protected override void ValidatePropertyType(BindingDiagnosticBag diagnostics)
         {
             base.ValidatePropertyType(diagnostics);
             VerifyOverridesEqualityContractFromBase(this, diagnostics);
+        }
+
+        internal override void AddSynthesizedAttributes(PEModuleBuilder moduleBuilder, ref ArrayBuilder<CSharpAttributeData> attributes)
+        {
+            base.AddSynthesizedAttributes(moduleBuilder, ref attributes);
+
+            var compilation = this.DeclaringCompilation;
+            AddSynthesizedAttribute(ref attributes, compilation.TrySynthesizeAttribute(WellKnownMember.System_Runtime_CompilerServices_CompilerGeneratedAttribute__ctor));
+            Debug.Assert(WellKnownMembers.IsSynthesizedAttributeOptional(WellKnownMember.System_Runtime_CompilerServices_CompilerGeneratedAttribute__ctor));
         }
 
         internal static void VerifyOverridesEqualityContractFromBase(PropertySymbol overriding, BindingDiagnosticBag diagnostics)
@@ -109,7 +124,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
             if (reportAnError)
             {
-                diagnostics.Add(ErrorCode.ERR_DoesNotOverrideBaseEqualityContract, overriding.Locations[0], overriding, overriding.ContainingType.BaseTypeNoUseSiteDiagnostics);
+                diagnostics.Add(ErrorCode.ERR_DoesNotOverrideBaseEqualityContract, overriding.GetFirstLocation(), overriding, overriding.ContainingType.BaseTypeNoUseSiteDiagnostics);
             }
         }
 
@@ -128,21 +143,31 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                        propertyModifiers,
                        location,
                        syntax,
-                       hasBody: false,
+                       hasBlockBody: true,
                        hasExpressionBody: false,
                        isIterator: false,
-                       modifiers: new SyntaxTokenList(),
+                       modifiers: default,
                        MethodKind.PropertyGet,
                        usesInit: false,
-                       isAutoPropertyAccessor: true,
+                       isAutoPropertyAccessor: false,
                        isNullableAnalysisEnabled: false,
                        diagnostics)
             {
             }
 
+            internal override void AddSynthesizedAttributes(PEModuleBuilder moduleBuilder, ref ArrayBuilder<CSharpAttributeData> attributes)
+            {
+                base.AddSynthesizedAttributes(moduleBuilder, ref attributes);
+
+                var compilation = this.DeclaringCompilation;
+                AddSynthesizedAttribute(ref attributes, compilation.TrySynthesizeAttribute(WellKnownMember.System_Runtime_CompilerServices_CompilerGeneratedAttribute__ctor));
+                Debug.Assert(WellKnownMembers.IsSynthesizedAttributeOptional(WellKnownMember.System_Runtime_CompilerServices_CompilerGeneratedAttribute__ctor));
+            }
+
             public override ImmutableArray<SyntaxReference> DeclaringSyntaxReferences => ImmutableArray<SyntaxReference>.Empty;
 
             internal override bool SynthesizesLoweredBoundBody => true;
+            internal override ExecutableCodeBinder? TryGetBodyBinder(BinderFactory? binderFactoryOpt = null, bool ignoreAccessibility = false) => throw ExceptionUtilities.Unreachable();
 
             internal override void GenerateMethodBody(TypeCompilationState compilationState, BindingDiagnosticBag diagnostics)
             {
@@ -151,7 +176,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 try
                 {
                     F.CurrentFunction = this;
-                    F.CloseMethod(F.Block(F.Return(F.Typeof(ContainingType))));
+                    F.CloseMethod(F.Block(F.Return(F.Typeof(ContainingType, ReturnType))));
                 }
                 catch (SyntheticBoundNodeFactory.MissingPredefinedMember ex)
                 {

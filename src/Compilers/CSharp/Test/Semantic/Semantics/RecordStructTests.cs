@@ -250,78 +250,40 @@ record struct Point(int x, int y);
 
             var comp = CreateCompilation(new[] { src1, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular9, options: TestOptions.ReleaseDll);
             comp.VerifyDiagnostics(
-                // (2,13): error CS1514: { expected
+                // 0.cs(2,13): error CS8773: Feature 'primary constructors' is not available in C# 9.0. Please use language version 12.0 or greater.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_LbraceExpected, "(").WithLocation(2, 13),
-                // (2,13): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "(int x, int y)").WithArguments("primary constructors", "12.0").WithLocation(2, 13),
+                // 0.cs(2,18): warning CS9113: Parameter 'x' is unread.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "(").WithLocation(2, 13),
-                // (2,13): error CS8803: Top-level statements must precede namespace and type declarations.
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "x").WithArguments("x").WithLocation(2, 18),
+                // 0.cs(2,25): warning CS9113: Parameter 'y' is unread.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_TopLevelStatementAfterNamespaceOrType, "(int x, int y);").WithLocation(2, 13),
-                // (2,13): error CS8805: Program using top-level statements must be an executable.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_SimpleProgramNotAnExecutable, "(int x, int y);").WithLocation(2, 13),
-                // (2,13): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_IllegalStatement, "(int x, int y)").WithLocation(2, 13),
-                // (2,14): error CS8185: A declaration is not allowed in this context.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_DeclarationExpressionNotPermitted, "int x").WithLocation(2, 14),
-                // (2,14): error CS0165: Use of unassigned local variable 'x'
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_UseDefViolation, "int x").WithArguments("x").WithLocation(2, 14),
-                // (2,21): error CS8185: A declaration is not allowed in this context.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_DeclarationExpressionNotPermitted, "int y").WithLocation(2, 21),
-                // (2,21): error CS0165: Use of unassigned local variable 'y'
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_UseDefViolation, "int y").WithArguments("y").WithLocation(2, 21)
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "y").WithArguments("y").WithLocation(2, 25)
                 );
 
             comp = CreateCompilation(new[] { src2, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular9, options: TestOptions.ReleaseDll);
             comp.VerifyDiagnostics(
                 // (2,8): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
                 // record struct Point { }
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 8)
-                );
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 8));
 
             comp = CreateCompilation(new[] { src3, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular9, options: TestOptions.ReleaseDll);
             comp.VerifyDiagnostics(
                 // (2,8): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
-                // record struct Point { }
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 8)
-                );
+                // record struct Point(int x, int y);
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 8));
 
             comp = CreateCompilation(new[] { src1, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular10, options: TestOptions.ReleaseDll);
             comp.VerifyDiagnostics(
-                // (2,13): error CS1514: { expected
+                // 0.cs(2,13): error CS8936: Feature 'primary constructors' is not available in C# 10.0. Please use language version 12.0 or greater.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_LbraceExpected, "(").WithLocation(2, 13),
-                // (2,13): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion10, "(int x, int y)").WithArguments("primary constructors", "12.0").WithLocation(2, 13),
+                // 0.cs(2,18): warning CS9113: Parameter 'x' is unread.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "(").WithLocation(2, 13),
-                // (2,13): error CS8803: Top-level statements must precede namespace and type declarations.
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "x").WithArguments("x").WithLocation(2, 18),
+                // 0.cs(2,25): warning CS9113: Parameter 'y' is unread.
                 // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_TopLevelStatementAfterNamespaceOrType, "(int x, int y);").WithLocation(2, 13),
-                // (2,13): error CS8805: Program using top-level statements must be an executable.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_SimpleProgramNotAnExecutable, "(int x, int y);").WithLocation(2, 13),
-                // (2,13): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_IllegalStatement, "(int x, int y)").WithLocation(2, 13),
-                // (2,14): error CS8185: A declaration is not allowed in this context.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_DeclarationExpressionNotPermitted, "int x").WithLocation(2, 14),
-                // (2,14): error CS0165: Use of unassigned local variable 'x'
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_UseDefViolation, "int x").WithArguments("x").WithLocation(2, 14),
-                // (2,21): error CS8185: A declaration is not allowed in this context.
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_DeclarationExpressionNotPermitted, "int y").WithLocation(2, 21),
-                // (2,21): error CS0165: Use of unassigned local variable 'y'
-                // struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_UseDefViolation, "int y").WithArguments("y").WithLocation(2, 21)
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "y").WithArguments("y").WithLocation(2, 25)
                 );
 
             comp = CreateCompilation(new[] { src2, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular10, options: TestOptions.ReleaseDll);
@@ -360,55 +322,43 @@ namespace NS
 ";
             var comp = CreateCompilation(src1, parseOptions: TestOptions.Regular9);
             comp.VerifyDiagnostics(
-                // (4,17): error CS1514: { expected
+                // (4,17): error CS8773: Feature 'primary constructors' is not available in C# 9.0. Please use language version 12.0 or greater.
                 //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_LbraceExpected, "(").WithLocation(4, 17),
-                // (4,17): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "(int x, int y)").WithArguments("primary constructors", "12.0").WithLocation(4, 17),
+                // (4,22): warning CS9113: Parameter 'x' is unread.
                 //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "(").WithLocation(4, 17),
-                // (4,31): error CS1519: Invalid token ';' in class, record, struct, or interface member declaration
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "x").WithArguments("x").WithLocation(4, 22),
+                // (4,29): warning CS9113: Parameter 'y' is unread.
                 //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_InvalidMemberDecl, ";").WithArguments(";").WithLocation(4, 31),
-                // (4,31): error CS1519: Invalid token ';' in class, record, struct, or interface member declaration
-                //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_InvalidMemberDecl, ";").WithArguments(";").WithLocation(4, 31)
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "y").WithArguments("y").WithLocation(4, 29)
                 );
 
             comp = CreateCompilation(new[] { src2, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular9);
             comp.VerifyDiagnostics(
                 // (4,12): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     record struct Point { }
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12)
-                );
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12));
 
             comp = CreateCompilation(new[] { src3, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular9);
             comp.VerifyDiagnostics(
                 // (4,12): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
-                //     record struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12)
-                );
+                //     record struct Point { }
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12));
 
             comp = CreateCompilation(src4, parseOptions: TestOptions.Regular9);
             comp.VerifyDiagnostics(
                 // (4,12): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     record struct Point { }
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12)
-                );
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(4, 12));
 
             comp = CreateCompilation(src1);
             comp.VerifyDiagnostics(
-                // (4,17): error CS1514: { expected
+                // (4,22): warning CS9113: Parameter 'x' is unread.
                 //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_LbraceExpected, "(").WithLocation(4, 17),
-                // (4,17): error CS1513: } expected
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "x").WithArguments("x").WithLocation(4, 22),
+                // (4,29): warning CS9113: Parameter 'y' is unread.
                 //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "(").WithLocation(4, 17),
-                // (4,31): error CS1519: Invalid token ';' in class, record, struct, or interface member declaration
-                //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_InvalidMemberDecl, ";").WithArguments(";").WithLocation(4, 31),
-                // (4,31): error CS1519: Invalid token ';' in class, record, struct, or interface member declaration
-                //     struct Point(int x, int y);
-                Diagnostic(ErrorCode.ERR_InvalidMemberDecl, ";").WithArguments(";").WithLocation(4, 31)
+                Diagnostic(ErrorCode.WRN_UnreadPrimaryConstructorParameter, "y").WithArguments("y").WithLocation(4, 29)
                 );
 
             comp = CreateCompilation(src2);
@@ -1025,7 +975,7 @@ record struct S2
                 // (3,5): error CS8773: Feature 'parameterless struct constructors' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     S1() { }
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "S1").WithArguments("parameterless struct constructors", "10.0").WithLocation(3, 5),
-                // (3,5): error CS8938: The parameterless struct constructor must be 'public'.
+                // (3,5): error CS8958: The parameterless struct constructor must be 'public'.
                 //     S1() { }
                 Diagnostic(ErrorCode.ERR_NonPublicParameterlessStructConstructor, "S1").WithLocation(3, 5),
                 // (5,8): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
@@ -1034,7 +984,7 @@ record struct S2
                 // (7,14): error CS8773: Feature 'parameterless struct constructors' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     internal S2() { }
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "S2").WithArguments("parameterless struct constructors", "10.0").WithLocation(7, 14),
-                // (7,14): error CS8938: The parameterless struct constructor must be 'public'.
+                // (7,14): error CS8958: The parameterless struct constructor must be 'public'.
                 //     internal S2() { }
                 Diagnostic(ErrorCode.ERR_NonPublicParameterlessStructConstructor, "S2").WithLocation(7, 14));
 
@@ -1080,10 +1030,10 @@ record struct S6(object o)
 ";
             var comp = CreateCompilation(src);
             comp.VerifyDiagnostics(
-                // (13,5): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (13,5): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     S3(object o) { } // 1
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S3").WithLocation(13, 5),
-                // (21,12): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (21,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     public S5() { } // 2
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S5").WithLocation(21, 12)
                 );
@@ -1139,7 +1089,7 @@ record struct S6(string other)
         }
 
         [Fact]
-        public void TypeDeclaration_InstanceInitializers()
+        public void TypeDeclaration_InstanceInitializers_01()
         {
             var src = @"
 public record struct S
@@ -1154,12 +1104,70 @@ public record struct S
                 // (2,15): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
                 // public record struct S
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 15),
+                // (2,22): error CS8983: A 'struct' with field initializers must include an explicitly declared constructor.
+                // public record struct S
+                Diagnostic(ErrorCode.ERR_StructHasInitializersAndNoDeclaredConstructor, "S").WithLocation(2, 22),
                 // (4,16): error CS8773: Feature 'struct field initializers' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     public int field = 42;
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "field").WithArguments("struct field initializers", "10.0").WithLocation(4, 16),
                 // (5,16): error CS8773: Feature 'struct field initializers' is not available in C# 9.0. Please use language version 10.0 or greater.
                 //     public int Property { get; set; } = 43;
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "Property").WithArguments("struct field initializers", "10.0").WithLocation(5, 16));
+
+            comp = CreateCompilation(src);
+            comp.VerifyDiagnostics(
+                // (2,22): error CS8983: A 'struct' with field initializers must include an explicitly declared constructor.
+                // public record struct S
+                Diagnostic(ErrorCode.ERR_StructHasInitializersAndNoDeclaredConstructor, "S").WithLocation(2, 22));
+        }
+
+        [Fact]
+        public void TypeDeclaration_InstanceInitializers_02()
+        {
+            var src = @"
+public record struct S
+{
+    public S() { }
+    public int field = 42;
+    public int Property { get; set; } = 43;
+}
+";
+
+            var comp = CreateCompilation(src, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (2,15): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
+                // public record struct S
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 15),
+                // (4,12): error CS8773: Feature 'parameterless struct constructors' is not available in C# 9.0. Please use language version 10.0 or greater.
+                //     public S() { }
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "S").WithArguments("parameterless struct constructors", "10.0").WithLocation(4, 12),
+                // (5,16): error CS8773: Feature 'struct field initializers' is not available in C# 9.0. Please use language version 10.0 or greater.
+                //     public int field = 42;
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "field").WithArguments("struct field initializers", "10.0").WithLocation(5, 16),
+                // (6,16): error CS8773: Feature 'struct field initializers' is not available in C# 9.0. Please use language version 10.0 or greater.
+                //     public int Property { get; set; } = 43;
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "Property").WithArguments("struct field initializers", "10.0").WithLocation(6, 16));
+
+            comp = CreateCompilation(src);
+            comp.VerifyDiagnostics();
+        }
+
+        [Fact]
+        public void TypeDeclaration_InstanceInitializers_03()
+        {
+            var src = @"
+public record struct S()
+{
+    public int field = 42;
+    public int Property { get; set; } = 43;
+}
+";
+
+            var comp = CreateCompilation(src, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (2,15): error CS8773: Feature 'record structs' is not available in C# 9.0. Please use language version 10.0 or greater.
+                // public record struct S()
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(2, 15));
 
             comp = CreateCompilation(src);
             comp.VerifyDiagnostics();
@@ -1178,7 +1186,7 @@ public record struct S
             comp.VerifyDiagnostics(
                 // (4,6): error CS0575: Only class types can contain destructors
                 //     ~S() { }
-                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "S").WithArguments("S.~S()").WithLocation(4, 6)
+                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "S").WithLocation(4, 6)
                 );
         }
 
@@ -1270,13 +1278,13 @@ partial record struct S3();
 ";
             var comp = CreateCompilation(src);
             comp.VerifyDiagnostics(
-                // (3,24): error CS8863: Only a single record partial declaration may have a parameter list
+                // (3,24): error CS8863: Only a single partial type declaration may have a parameter list
                 // partial record struct S(int i);
                 Diagnostic(ErrorCode.ERR_MultipleRecordParameterLists, "(int i)").WithLocation(3, 24),
-                // (6,25): error CS8863: Only a single record partial declaration may have a parameter list
+                // (6,25): error CS8863: Only a single partial type declaration may have a parameter list
                 // partial record struct S2();
                 Diagnostic(ErrorCode.ERR_MultipleRecordParameterLists, "()").WithLocation(6, 25),
-                // (9,25): error CS8863: Only a single record partial declaration may have a parameter list
+                // (9,25): error CS8863: Only a single partial type declaration may have a parameter list
                 // partial record struct S3();
                 Diagnostic(ErrorCode.ERR_MultipleRecordParameterLists, "()").WithLocation(9, 25)
                 );
@@ -1471,64 +1479,127 @@ record struct C9 : System.ICloneable
                 );
         }
 
-        [ConditionalFact(typeof(DesktopOnly), Reason = ConditionalSkipReason.RestrictedTypesNeedDesktop)]
+        [Theory, CombinatorialData]
         [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
-        public void RestrictedTypesAndPointerTypes()
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
+        public void RestrictedTypesAndPointerTypes(bool withEquals)
         {
-            var src = @"
-class C<T> { }
-static class C2 { }
-ref struct RefLike{}
+            var src = $$"""
 
-unsafe record struct C( // 1
-    int* P1, // 2
-    int*[] P2, // 3
-    C<int*[]> P3,
-    delegate*<int, int> P4, // 4
-    void P5, // 5
-    C2 P6, // 6, 7
-    System.ArgIterator P7, // 8
-    System.TypedReference P8, // 9
-    RefLike P9); // 10
-";
+                class C<T> { }
+                static class C2 { }
+                ref struct RefLike{}
 
-            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.RegularPreview, options: TestOptions.UnsafeDebugDll);
-            comp.VerifyEmitDiagnostics(
-                // (6,22): error CS0721: 'C2': static types cannot be used as parameters
-                // unsafe record struct C( // 1
-                Diagnostic(ErrorCode.ERR_ParameterIsStaticClass, "C").WithArguments("C2").WithLocation(6, 22),
-                // (7,10): error CS8908: The type 'int*' may not be used for a field of a record.
-                //     int* P1, // 2
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "P1").WithArguments("int*").WithLocation(7, 10),
-                // (8,12): error CS8908: The type 'int*[]' may not be used for a field of a record.
-                //     int*[] P2, // 3
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "P2").WithArguments("int*[]").WithLocation(8, 12),
-                // (10,25): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
-                //     delegate*<int, int> P4, // 4
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "P4").WithArguments("delegate*<int, int>").WithLocation(10, 25),
-                // (11,5): error CS1536: Invalid parameter type 'void'
-                //     void P5, // 5
+                unsafe record struct C(
+                    int* P1, // 1
+                    int*[] P2,
+                    C<int*[]> P3,
+                    delegate*<int, int> P4, // 2
+                    void P5, // 3
+                    C2 P6, // 4, 5
+                    System.ArgIterator P7, // 6
+                    System.TypedReference P8, // 7
+                    RefLike P9, // 8
+                    delegate*<void>[] P10) // 9
+                {
+                    {{(withEquals ? "public bool Equals(C c) => true;" : "")}}
+                    {{(withEquals ? "public override int GetHashCode() => 0;" : "")}}
+                }
+
+                """;
+
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll, targetFramework: TargetFramework.Mscorlib461);
+            DiagnosticDescription[] expected = [
+                // 0.cs(7,5): error CS8908: The type 'int*' may not be used for a field of a record.
+                //     int* P1, // 1
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int*").WithArguments("int*").WithLocation(7, 5),
+                // 0.cs(10,5): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
+                //     delegate*<int, int> P4, // 2
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "delegate*<int, int>").WithArguments("delegate*<int, int>").WithLocation(10, 5),
+                // 0.cs(11,5): error CS1536: Invalid parameter type 'void'
+                //     void P5, // 3
                 Diagnostic(ErrorCode.ERR_NoVoidParameter, "void").WithLocation(11, 5),
-                // (12,8): error CS0722: 'C2': static types cannot be used as return types
-                //     C2 P6, // 6, 7
-                Diagnostic(ErrorCode.ERR_ReturnTypeIsStaticClass, "P6").WithArguments("C2").WithLocation(12, 8),
-                // (12,8): error CS0721: 'C2': static types cannot be used as parameters
-                //     C2 P6, // 6, 7
-                Diagnostic(ErrorCode.ERR_ParameterIsStaticClass, "P6").WithArguments("C2").WithLocation(12, 8),
-                // (13,5): error CS0610: Field or property cannot be of type 'ArgIterator'
-                //     System.ArgIterator P7, // 8
+                // 0.cs(12,5): error CS0721: 'C2': static types cannot be used as parameters
+                //     C2 P6, // 4, 5
+                Diagnostic(ErrorCode.ERR_ParameterIsStaticClass, "C2").WithArguments("C2").WithLocation(12, 5),
+                // 0.cs(12,5): error CS0722: 'C2': static types cannot be used as return types
+                //     C2 P6, // 4, 5
+                Diagnostic(ErrorCode.ERR_ReturnTypeIsStaticClass, "C2").WithArguments("C2").WithLocation(12, 5),
+                // 0.cs(13,5): error CS0610: Field or property cannot be of type 'ArgIterator'
+                //     System.ArgIterator P7, // 6
                 Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.ArgIterator").WithArguments("System.ArgIterator").WithLocation(13, 5),
-                // (14,5): error CS0610: Field or property cannot be of type 'TypedReference'
-                //     System.TypedReference P8, // 9
+                // 0.cs(14,5): error CS0610: Field or property cannot be of type 'TypedReference'
+                //     System.TypedReference P8, // 7
                 Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(14, 5),
-                // (15,5): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
-                //     RefLike P9); // 10
-                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(15, 5)
-                );
+                // 0.cs(15,5): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
+                //     RefLike P9, // 8
+                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(15, 5)];
+            comp.VerifyDiagnostics(expected);
+            comp.VerifyEmitDiagnostics(expected);
+        }
+        [Fact]
+        [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
+        public void RestrictedTypesAndPointerTypes_WithEquals()
+        {
+            var src = $$"""
+
+                class C<T> { }
+                static class C2 { }
+                ref struct RefLike{}
+
+                unsafe record struct C(
+                    int* P1, // 1
+                    int*[] P2,
+                    C<int*[]> P3,
+                    delegate*<int, int> P4, // 2
+                    void P5, // 3
+                    C2 P6, // 4, 5
+                    System.ArgIterator P7, // 6
+                    System.TypedReference P8, // 7
+                    RefLike P9, // 8
+                    delegate*<void>[] P10)
+                {
+                    public bool Equals(C c) => true;
+                    public override int GetHashCode() => 0;
+                }
+
+                """;
+
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll, targetFramework: TargetFramework.Mscorlib461);
+            DiagnosticDescription[] expected = [
+                // 0.cs(7,5): error CS8908: The type 'int*' may not be used for a field of a record.
+                //     int* P1, // 1
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int*").WithArguments("int*").WithLocation(7, 5),
+                // 0.cs(10,5): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
+                //     delegate*<int, int> P4, // 2
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "delegate*<int, int>").WithArguments("delegate*<int, int>").WithLocation(10, 5),
+                // 0.cs(11,5): error CS1536: Invalid parameter type 'void'
+                //     void P5, // 3
+                Diagnostic(ErrorCode.ERR_NoVoidParameter, "void").WithLocation(11, 5),
+                // 0.cs(12,5): error CS0721: 'C2': static types cannot be used as parameters
+                //     C2 P6, // 4, 5
+                Diagnostic(ErrorCode.ERR_ParameterIsStaticClass, "C2").WithArguments("C2").WithLocation(12, 5),
+                // 0.cs(12,5): error CS0722: 'C2': static types cannot be used as return types
+                //     C2 P6, // 4, 5
+                Diagnostic(ErrorCode.ERR_ReturnTypeIsStaticClass, "C2").WithArguments("C2").WithLocation(12, 5),
+                // 0.cs(13,5): error CS0610: Field or property cannot be of type 'ArgIterator'
+                //     System.ArgIterator P7, // 6
+                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.ArgIterator").WithArguments("System.ArgIterator").WithLocation(13, 5),
+                // 0.cs(14,5): error CS0610: Field or property cannot be of type 'TypedReference'
+                //     System.TypedReference P8, // 7
+                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(14, 5),
+                // 0.cs(15,5): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
+                //     RefLike P9, // 8
+                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(15, 5)];
+
+            comp.VerifyDiagnostics(expected);
+            comp.VerifyEmitDiagnostics(expected);
         }
 
-        [ConditionalFact(typeof(DesktopOnly), Reason = ConditionalSkipReason.RestrictedTypesNeedDesktop)]
+        [Fact]
         [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
         public void RestrictedTypesAndPointerTypes_NominalMembers()
         {
             var src = @"
@@ -1539,48 +1610,48 @@ public ref struct RefLike{}
 public unsafe record struct C
 {
     public int* f1; // 1
-    public int*[] f2; // 2
+    public int*[] f2;
     public C<int*[]> f3;
-    public delegate*<int, int> f4; // 3
-    public void f5; // 4
-    public C2 f6; // 5
-    public System.ArgIterator f7; // 6
-    public System.TypedReference f8; // 7
-    public RefLike f9; // 8
+    public delegate*<int, int> f4; // 2
+    public void f5; // 3
+    public C2 f6; // 4
+    public System.ArgIterator f7; // 5
+    public System.TypedReference f8; // 6
+    public RefLike f9; // 7
+    public delegate*<void>[] f10; // 8
 }
 ";
 
-            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.RegularPreview, options: TestOptions.UnsafeDebugDll);
-            comp.VerifyEmitDiagnostics(
-                // (8,17): error CS8908: The type 'int*' may not be used for a field of a record.
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll, targetFramework: TargetFramework.Mscorlib461);
+            DiagnosticDescription[] expected = [
+                // 0.cs(8,12): error CS8908: The type 'int*' may not be used for a field of a record.
                 //     public int* f1; // 1
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f1").WithArguments("int*").WithLocation(8, 17),
-                // (9,19): error CS8908: The type 'int*[]' may not be used for a field of a record.
-                //     public int*[] f2; // 2
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f2").WithArguments("int*[]").WithLocation(9, 19),
-                // (11,32): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int*").WithArguments("int*").WithLocation(8, 12),
+                // 0.cs(11,12): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
                 //     public delegate*<int, int> f4; // 3
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f4").WithArguments("delegate*<int, int>").WithLocation(11, 32),
-                // (12,12): error CS0670: Field cannot have void type
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "delegate*<int, int>").WithArguments("delegate*<int, int>").WithLocation(11, 12),
+                // 0.cs(12,12): error CS0670: Field cannot have void type
                 //     public void f5; // 4
                 Diagnostic(ErrorCode.ERR_FieldCantHaveVoidType, "void").WithLocation(12, 12),
-                // (13,15): error CS0723: Cannot declare a variable of static type 'C2'
+                // 0.cs(13,15): error CS0723: Cannot declare a variable of static type 'C2'
                 //     public C2 f6; // 5
                 Diagnostic(ErrorCode.ERR_VarDeclIsStaticClass, "f6").WithArguments("C2").WithLocation(13, 15),
-                // (14,12): error CS0610: Field or property cannot be of type 'ArgIterator'
+                // 0.cs(14,12): error CS0610: Field or property cannot be of type 'ArgIterator'
                 //     public System.ArgIterator f7; // 6
                 Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.ArgIterator").WithArguments("System.ArgIterator").WithLocation(14, 12),
-                // (15,12): error CS0610: Field or property cannot be of type 'TypedReference'
+                // 0.cs(15,12): error CS0610: Field or property cannot be of type 'TypedReference'
                 //     public System.TypedReference f8; // 7
                 Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(15, 12),
-                // (16,12): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
+                // 0.cs(16,12): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
                 //     public RefLike f9; // 8
-                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(16, 12)
-                );
+                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(16, 12)];
+            comp.VerifyDiagnostics(expected);
+            comp.VerifyEmitDiagnostics(expected);
         }
 
-        [ConditionalFact(typeof(DesktopOnly), Reason = ConditionalSkipReason.RestrictedTypesNeedDesktop)]
+        [Fact]
         [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
         public void RestrictedTypesAndPointerTypes_NominalMembers_AutoProperties()
         {
             var src = @"
@@ -1591,51 +1662,52 @@ public ref struct RefLike{}
 public unsafe record struct C
 {
     public int* f1 { get; set; } // 1
-    public int*[] f2 { get; set; } // 2
+    public int* f1_a { get => field; set; } // 1
+    public int*[] f2 { get; set; }
     public C<int*[]> f3 { get; set; }
-    public delegate*<int, int> f4 { get; set; } // 3
-    public void f5 { get; set; } // 4
-    public C2 f6 { get; set; } // 5, 6
-    public System.ArgIterator f7 { get; set; } // 6
-    public System.TypedReference f8 { get; set; } // 7
-    public RefLike f9 { get; set; } // 8
+    public delegate*<int, int> f4 { get; set; } // 2
+    public void f5 { get; set; } // 3
+    public C2 f6 { get; set; } // 4
+    public System.ArgIterator f7 { get; set; } // 5
+    public System.TypedReference f8 { get; set; } // 6
+    public RefLike f9 { get; set; } // 7
+    public delegate*<void>[] f10 { get; set; } // 8
 }
 ";
 
-            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.RegularPreview, options: TestOptions.UnsafeDebugDll);
-            comp.VerifyEmitDiagnostics(
-                // (8,17): error CS8908: The type 'int*' may not be used for a field of a record.
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll, targetFramework: TargetFramework.Mscorlib461);
+            DiagnosticDescription[] expected = [
+                // 0.cs(8,12): error CS8908: The type 'int*' may not be used for a field of a record.
                 //     public int* f1 { get; set; } // 1
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f1").WithArguments("int*").WithLocation(8, 17),
-                // (9,19): error CS8908: The type 'int*[]' may not be used for a field of a record.
-                //     public int*[] f2 { get; set; } // 2
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f2").WithArguments("int*[]").WithLocation(9, 19),
-                // (11,32): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
-                //     public delegate*<int, int> f4 { get; set; } // 3
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "f4").WithArguments("delegate*<int, int>").WithLocation(11, 32),
-                // (12,17): error CS0547: 'C.f5': property or indexer cannot have void type
-                //     public void f5 { get; set; } // 4
-                Diagnostic(ErrorCode.ERR_PropertyCantHaveVoidType, "f5").WithArguments("C.f5").WithLocation(12, 17),
-                // (13,20): error CS0722: 'C2': static types cannot be used as return types
-                //     public C2 f6 { get; set; } // 5, 6
-                Diagnostic(ErrorCode.ERR_ReturnTypeIsStaticClass, "get").WithArguments("C2").WithLocation(13, 20),
-                // (13,25): error CS0721: 'C2': static types cannot be used as parameters
-                //     public C2 f6 { get; set; } // 5, 6
-                Diagnostic(ErrorCode.ERR_ParameterIsStaticClass, "set").WithArguments("C2").WithLocation(13, 25),
-                // (14,12): error CS0610: Field or property cannot be of type 'ArgIterator'
-                //     public System.ArgIterator f7 { get; set; } // 6
-                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.ArgIterator").WithArguments("System.ArgIterator").WithLocation(14, 12),
-                // (15,12): error CS0610: Field or property cannot be of type 'TypedReference'
-                //     public System.TypedReference f8 { get; set; } // 7
-                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(15, 12),
-                // (16,12): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
-                //     public RefLike f9 { get; set; } // 8
-                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(16, 12)
-                );
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int*").WithArguments("int*").WithLocation(8, 12),
+                // 0.cs(9,12): error CS8908: The type 'int*' may not be used for a field of a record.
+                //     public int* f1_a { get => field; set; } // 1
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int*").WithArguments("int*").WithLocation(9, 12),
+                // 0.cs(12,12): error CS8908: The type 'delegate*<int, int>' may not be used for a field of a record.
+                //     public delegate*<int, int> f4 { get; set; } // 2
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "delegate*<int, int>").WithArguments("delegate*<int, int>").WithLocation(12, 12),
+                // 0.cs(13,17): error CS0547: 'C.f5': property or indexer cannot have void type
+                //     public void f5 { get; set; } // 3
+                Diagnostic(ErrorCode.ERR_PropertyCantHaveVoidType, "f5").WithArguments("C.f5").WithLocation(13, 17),
+                // 0.cs(14,12): error CS0722: 'C2': static types cannot be used as return types
+                //     public C2 f6 { get; set; } // 4
+                Diagnostic(ErrorCode.ERR_ReturnTypeIsStaticClass, "C2").WithArguments("C2").WithLocation(14, 12),
+                // 0.cs(15,12): error CS0610: Field or property cannot be of type 'ArgIterator'
+                //     public System.ArgIterator f7 { get; set; } // 5
+                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.ArgIterator").WithArguments("System.ArgIterator").WithLocation(15, 12),
+                // 0.cs(16,12): error CS0610: Field or property cannot be of type 'TypedReference'
+                //     public System.TypedReference f8 { get; set; } // 6
+                Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(16, 12),
+                // 0.cs(17,12): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
+                //     public RefLike f9 { get; set; } // 7
+                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(17, 12)];
+            comp.VerifyDiagnostics(expected);
+            comp.VerifyEmitDiagnostics(expected);
         }
 
         [Fact]
         [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
         public void RestrictedTypesAndPointerTypes_PointerTypeAllowedForParameterAndProperty()
         {
             var src = @"
@@ -1683,8 +1755,9 @@ unsafe record struct C(int* P1, int*[] P2, C<int*[]> P3)
             CompileAndVerify(comp, expectedOutput: "P1 P2 P3 RAN", verify: Verification.Skipped /* pointers */);
         }
 
-        [ConditionalFact(typeof(DesktopOnly), Reason = ConditionalSkipReason.RestrictedTypesNeedDesktop)]
+        [Fact]
         [WorkItem(48115, "https://github.com/dotnet/roslyn/issues/48115")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/66312")]
         public void RestrictedTypesAndPointerTypes_StaticFields()
         {
             var src = @"
@@ -1705,8 +1778,8 @@ public unsafe record C
 }
 ";
 
-            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll);
-            comp.VerifyEmitDiagnostics(
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, options: TestOptions.UnsafeDebugDll, targetFramework: TargetFramework.Mscorlib461);
+            DiagnosticDescription[] expected = [
                 // (12,22): error CS0723: Cannot declare a variable of static type 'C2'
                 //     public static C2 f6; // 1
                 Diagnostic(ErrorCode.ERR_VarDeclIsStaticClass, "f6").WithArguments("C2").WithLocation(12, 22),
@@ -1718,8 +1791,9 @@ public unsafe record C
                 Diagnostic(ErrorCode.ERR_FieldCantBeRefAny, "System.TypedReference").WithArguments("System.TypedReference").WithLocation(14, 19),
                 // (15,19): error CS8345: Field or auto-implemented property cannot be of type 'RefLike' unless it is an instance member of a ref struct.
                 //     public static RefLike f9; // 4
-                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(15, 19)
-                );
+                Diagnostic(ErrorCode.ERR_FieldAutoPropCantBeByRefLike, "RefLike").WithArguments("RefLike").WithLocation(15, 19)];
+            comp.VerifyDiagnostics(expected);
+            comp.VerifyEmitDiagnostics(expected);
         }
 
         [Fact]
@@ -1862,7 +1936,7 @@ record struct C(int X, int Y)
                 // (5,12): error CS0111: Type 'C' already defines a member called 'C' with the same parameter types
                 //     public C(int a, int b)
                 Diagnostic(ErrorCode.ERR_MemberAlreadyExists, "C").WithArguments("C", "C").WithLocation(5, 12),
-                // (5,12): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (5,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     public C(int a, int b)
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "C").WithLocation(5, 12),
                 // (11,21): error CS0121: The call is ambiguous between the following methods or properties: 'C.C(int, int)' and 'C.C(int, int)'
@@ -1887,15 +1961,35 @@ record struct C(int X, int Y)
         Console.WriteLine(c.Y);
     }
 }";
-            var comp = CreateCompilation(src);
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular10);
             comp.VerifyEmitDiagnostics(
-                // (3,15): error CS0843: Auto-implemented property 'C.X' must be fully assigned before control is returned to the caller.
+                // (3,15): error CS0843: Auto-implemented property 'C.X' must be fully assigned before control is returned to the caller. Consider updating to language version '11.0' to auto-default the property.
                 // record struct C(int X, int Y)
-                Diagnostic(ErrorCode.ERR_UnassignedThisAutoProperty, "C").WithArguments("C.X").WithLocation(3, 15),
+                Diagnostic(ErrorCode.ERR_UnassignedThisAutoPropertyUnsupportedVersion, "C").WithArguments("C.X", "11.0").WithLocation(3, 15),
                 // (3,21): warning CS8907: Parameter 'X' is unread. Did you forget to use it to initialize the property with that name?
                 // record struct C(int X, int Y)
                 Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "X").WithArguments("X").WithLocation(3, 21)
                 );
+
+            var verifier = CompileAndVerify(src, parseOptions: TestOptions.Regular11);
+            verifier.VerifyDiagnostics(
+                // (3,21): warning CS8907: Parameter 'X' is unread. Did you forget to use it to initialize the property with that name?
+                // record struct C(int X, int Y)
+                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "X").WithArguments("X").WithLocation(3, 21)
+                );
+            verifier.VerifyIL("C..ctor(int, int)", @"
+{
+  // Code size       15 (0xf)
+  .maxstack  2
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4.0
+  IL_0002:  stfld      ""int C.<X>k__BackingField""
+  IL_0007:  ldarg.0
+  IL_0008:  ldarg.2
+  IL_0009:  stfld      ""int C.<Y>k__BackingField""
+  IL_000e:  ret
+}
+");
         }
 
         [Fact]
@@ -2122,7 +2216,7 @@ record struct C(object P)
         [Fact]
         public void RecordProperties_11_UnreadPositionalParameter()
         {
-            var comp = CreateCompilation(@"
+            var source = @"
 record struct C1(object O1, object O2, object O3) // 1, 2
 {
     public object O1 { get; init; }
@@ -2130,18 +2224,48 @@ record struct C1(object O1, object O2, object O3) // 1, 2
     public object O3 { get; init; } = M(O3 = null);
     private static object M(object o) => o;
 }
-");
+";
+            var comp = CreateCompilation(new[] { source, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular10);
             comp.VerifyDiagnostics(
-                // (2,15): error CS0843: Auto-implemented property 'C1.O1' must be fully assigned before control is returned to the caller.
-                // record struct C1(object O1, object O2, object O3) // 1, 2
-                Diagnostic(ErrorCode.ERR_UnassignedThisAutoProperty, "C1").WithArguments("C1.O1").WithLocation(2, 15),
+                    // (2,15): error CS0843: Auto-implemented property 'C1.O1' must be fully assigned before control is returned to the caller. Consider updating to language version '11.0' to auto-default the property.
+                    // record struct C1(object O1, object O2, object O3) // 1, 2
+                    Diagnostic(ErrorCode.ERR_UnassignedThisAutoPropertyUnsupportedVersion, "C1").WithArguments("C1.O1", "11.0").WithLocation(2, 15),
+                    // (2,25): warning CS8907: Parameter 'O1' is unread. Did you forget to use it to initialize the property with that name?
+                    // record struct C1(object O1, object O2, object O3) // 1, 2
+                    Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "O1").WithArguments("O1").WithLocation(2, 25),
+                    // (2,47): warning CS8907: Parameter 'O3' is unread. Did you forget to use it to initialize the property with that name?
+                    // record struct C1(object O1, object O2, object O3) // 1, 2
+                    Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "O3").WithArguments("O3").WithLocation(2, 47)
+                );
+
+            var verifier = CompileAndVerify(new[] { source, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular11, verify: Verification.Skipped);
+            verifier.VerifyDiagnostics(
                 // (2,25): warning CS8907: Parameter 'O1' is unread. Did you forget to use it to initialize the property with that name?
                 // record struct C1(object O1, object O2, object O3) // 1, 2
                 Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "O1").WithArguments("O1").WithLocation(2, 25),
                 // (2,47): warning CS8907: Parameter 'O3' is unread. Did you forget to use it to initialize the property with that name?
                 // record struct C1(object O1, object O2, object O3) // 1, 2
-                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "O3").WithArguments("O3").WithLocation(2, 47)
-                );
+                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "O3").WithArguments("O3").WithLocation(2, 47));
+            verifier.VerifyIL("C1..ctor(object, object, object)", @"
+{
+  // Code size       35 (0x23)
+  .maxstack  3
+  IL_0000:  ldarg.0
+  IL_0001:  ldnull
+  IL_0002:  stfld      ""object C1.<O1>k__BackingField""
+  IL_0007:  ldarg.0
+  IL_0008:  ldarg.2
+  IL_0009:  call       ""object C1.M(object)""
+  IL_000e:  stfld      ""object C1.<O2>k__BackingField""
+  IL_0013:  ldarg.0
+  IL_0014:  ldnull
+  IL_0015:  dup
+  IL_0016:  starg.s    V_3
+  IL_0018:  call       ""object C1.M(object)""
+  IL_001d:  stfld      ""object C1.<O3>k__BackingField""
+  IL_0022:  ret
+}
+");
         }
 
         [Fact]
@@ -2197,6 +2321,14 @@ namespace System
         public bool X { get; set; }
     }
     public class Attribute { }
+    public class AttributeUsageAttribute : Attribute
+    {
+        public AttributeUsageAttribute(AttributeTargets t) { }
+        public bool AllowMultiple { get; set; }
+        public bool Inherited { get; set; }
+    }
+    public struct Enum { }
+    public enum AttributeTargets { }
     public class String { }
     public struct Void { }
     public struct Boolean { }
@@ -2291,6 +2423,14 @@ namespace System
         public static bool X { get; set; }
     }
     public class Attribute { }
+    public class AttributeUsageAttribute : Attribute
+    {
+        public AttributeUsageAttribute(AttributeTargets t) { }
+        public bool AllowMultiple { get; set; }
+        public bool Inherited { get; set; }
+    }
+    public struct Enum { }
+    public enum AttributeTargets { }
     public class String { }
     public struct Void { }
     public struct Boolean { }
@@ -2550,9 +2690,9 @@ record struct C(int X)
 
             var comp = CreateCompilation(src);
             comp.VerifyDiagnostics(
-                // (4,20): error CS0236: A field initializer cannot reference the non-static field, method, or property 'C.X'
+                // (4,20): error CS9105: Cannot use primary constructor parameter 'int X' in this context.
                 //     static int Z = X + 1;
-                Diagnostic(ErrorCode.ERR_FieldInitRefNonstatic, "X").WithArguments("C.X").WithLocation(4, 20)
+                Diagnostic(ErrorCode.ERR_InvalidPrimaryConstructorParameterReference, "X").WithArguments("int X").WithLocation(4, 20)
                 );
 
             var tree = comp.SyntaxTrees.First();
@@ -2562,9 +2702,9 @@ record struct C(int X)
             Assert.Equal("= X + 1", x.Parent!.Parent!.ToString());
 
             var symbol = model.GetSymbolInfo(x).Symbol;
-            Assert.Equal(SymbolKind.Property, symbol!.Kind);
-            Assert.Equal("System.Int32 C.X { get; set; }", symbol.ToTestDisplayString());
-            Assert.Equal("C", symbol.ContainingSymbol.ToTestDisplayString());
+            Assert.Equal(SymbolKind.Parameter, symbol!.Kind);
+            Assert.Equal("System.Int32 X", symbol.ToTestDisplayString());
+            Assert.Equal("C..ctor(System.Int32 X)", symbol.ContainingSymbol.ToTestDisplayString());
             Assert.Equal("System.Int32 C.Z", model.GetEnclosingSymbol(x.SpanStart).ToTestDisplayString());
             Assert.Contains(symbol, model.LookupSymbols(x.SpanStart, name: "X"));
             Assert.Contains("X", model.LookupNames(x.SpanStart));
@@ -2581,9 +2721,12 @@ record struct C(int X)
 
             var comp = CreateCompilation(src);
             comp.VerifyDiagnostics(
-                // (4,19): error CS0236: A field initializer cannot reference the non-static field, method, or property 'C.X'
+                // (4,19): error CS9105: Cannot use primary constructor parameter 'int X' in this context.
                 //     const int Z = X + 1;
-                Diagnostic(ErrorCode.ERR_FieldInitRefNonstatic, "X").WithArguments("C.X").WithLocation(4, 19)
+                Diagnostic(ErrorCode.ERR_InvalidPrimaryConstructorParameterReference, "X").WithArguments("int X").WithLocation(4, 19),
+                // (4,19): error CS0133: The expression being assigned to 'C.Z' must be constant
+                //     const int Z = X + 1;
+                Diagnostic(ErrorCode.ERR_NotConstantExpression, "X + 1").WithArguments("C.Z").WithLocation(4, 19)
                 );
 
             var tree = comp.SyntaxTrees.First();
@@ -2593,9 +2736,9 @@ record struct C(int X)
             Assert.Equal("= X + 1", x.Parent!.Parent!.ToString());
 
             var symbol = model.GetSymbolInfo(x).Symbol;
-            Assert.Equal(SymbolKind.Property, symbol!.Kind);
-            Assert.Equal("System.Int32 C.X { get; set; }", symbol.ToTestDisplayString());
-            Assert.Equal("C", symbol.ContainingSymbol.ToTestDisplayString());
+            Assert.Equal(SymbolKind.Parameter, symbol!.Kind);
+            Assert.Equal("System.Int32 X", symbol.ToTestDisplayString());
+            Assert.Equal("C..ctor(System.Int32 X)", symbol.ContainingSymbol.ToTestDisplayString());
             Assert.Equal("System.Int32 C.Z", model.GetEnclosingSymbol(x.SpanStart).ToTestDisplayString());
             Assert.Contains(symbol, model.LookupSymbols(x.SpanStart, name: "X"));
             Assert.Contains("X", model.LookupNames(x.SpanStart));
@@ -2783,15 +2926,32 @@ record struct R(int P = 42)
     }
 }
 ";
-            var comp = CreateCompilation(src);
+            var comp = CreateCompilation(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular10);
             comp.VerifyDiagnostics(
-                // (2,15): error CS0843: Auto-implemented property 'R.P' must be fully assigned before control is returned to the caller.
+                // (2,15): error CS0843: Auto-implemented property 'R.P' must be fully assigned before control is returned to the caller. Consider updating to language version '11.0' to auto-default the property.
                 // record struct R(int P = 42)
-                Diagnostic(ErrorCode.ERR_UnassignedThisAutoProperty, "R").WithArguments("R.P").WithLocation(2, 15),
+                Diagnostic(ErrorCode.ERR_UnassignedThisAutoPropertyUnsupportedVersion, "R").WithArguments("R.P", "11.0").WithLocation(2, 15),
                 // (2,21): warning CS8907: Parameter 'P' is unread. Did you forget to use it to initialize the property with that name?
                 // record struct R(int P = 42)
                 Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "P").WithArguments("P").WithLocation(2, 21)
                 );
+
+            var verifier = CompileAndVerify(new[] { src, IsExternalInitTypeDefinition }, parseOptions: TestOptions.Regular11, verify: Verification.Skipped);
+            verifier.VerifyDiagnostics(
+                // (2,21): warning CS8907: Parameter 'P' is unread. Did you forget to use it to initialize the property with that name?
+                // record struct R(int P = 42)
+                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "P").WithArguments("P").WithLocation(2, 21)
+                );
+            verifier.VerifyIL("R..ctor(int)", @"
+{
+  // Code size        8 (0x8)
+  .maxstack  2
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4.0
+  IL_0002:  stfld      ""int R.<P>k__BackingField""
+  IL_0007:  ret
+}
+");
         }
 
         [Fact]
@@ -2985,7 +3145,7 @@ record struct C
         public void CS0574ERR_BadDestructorName()
         {
             var test = @"
-public record struct iii
+public record struct @iii
 {
     ~iiii(){}
 }
@@ -2997,7 +3157,7 @@ public record struct iii
                 Diagnostic(ErrorCode.ERR_BadDestructorName, "iiii").WithLocation(4, 6),
                 // (4,6): error CS0575: Only class types can contain destructors
                 //     ~iiii(){}
-                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "iiii").WithArguments("iii.~iii()").WithLocation(4, 6)
+                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "iiii").WithLocation(4, 6)
                 );
         }
 
@@ -3018,7 +3178,7 @@ static record struct R(int I)
                 Diagnostic(ErrorCode.ERR_BadMemberFlag, "R").WithArguments("static").WithLocation(2, 22),
                 // (5,6): error CS0575: Only class types can contain destructors
                 //     ~R() { }
-                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "R").WithArguments("R.~R()").WithLocation(5, 6)
+                Diagnostic(ErrorCode.ERR_OnlyClassesCanContainDestructors, "R").WithLocation(5, 6)
                 );
         }
 
@@ -3031,9 +3191,9 @@ static record struct R(int I)
     partial void M();
 }";
             CreateCompilation(source).VerifyDiagnostics(
-                // (3,18): error CS0751: A partial method must be declared within a partial type
+                // (3,18): error CS0751: A partial member must be declared within a partial type
                 //     partial void M();
-                Diagnostic(ErrorCode.ERR_PartialMethodOnlyInPartialClass, "M").WithLocation(3, 18)
+                Diagnostic(ErrorCode.ERR_PartialMemberOnlyInPartialClass, "M").WithLocation(3, 18)
                 );
         }
 
@@ -3115,7 +3275,7 @@ namespace System.Runtime.CompilerServices
     <param name=""I1"">Description for I1</param>
 </member>
 ", cMember.GetDocumentationCommentXml());
-            var constructor = cMember.GetMembers(".ctor").OfType<SynthesizedRecordConstructor>().Single();
+            var constructor = cMember.GetMembers(".ctor").OfType<SynthesizedPrimaryConstructor>().Single();
             Assert.Equal(
 @"<member name=""M:C.#ctor(System.Int32)"">
     <summary>Summary</summary>
@@ -3126,7 +3286,41 @@ namespace System.Runtime.CompilerServices
             Assert.Equal("", constructor.GetParameters()[0].GetDocumentationCommentXml());
 
             var property = cMember.GetMembers("I1").Single();
-            Assert.Equal("", property.GetDocumentationCommentXml());
+            AssertEx.Equal(
+@"<member name=""P:C.I1"">
+    <summary>Description for I1</summary>
+</member>
+", property.GetDocumentationCommentXml());
+        }
+
+        [Theory, CombinatorialData, WorkItem("https://devdiv.visualstudio.com/DevDiv/_workitems/edit/1931501")]
+        public void XmlDoc_InsideType(
+            [CombinatorialValues("x", "p")] string identifier,
+            [CombinatorialValues("param", "paramref")] string tag)
+        {
+            var source = $$"""
+                record struct C(int p)
+                {
+                    /// <{{tag}} name="{{identifier}}"></{{tag}}>
+                }
+                """;
+            var comp = CreateCompilation(source, parseOptions: TestOptions.RegularPreview.WithDocumentationMode(DocumentationMode.Diagnose));
+            comp.VerifyDiagnostics(
+                // (3,5): warning CS1587: XML comment is not placed on a valid language element
+                //     /// <param name="x"></param>
+                Diagnostic(ErrorCode.WRN_UnprocessedXMLComment, "/").WithLocation(3, 5));
+
+            var tree = comp.SyntaxTrees.Single();
+            var doc = tree.GetRoot().DescendantTrivia().Select(trivia => trivia.GetStructure()).OfType<DocumentationCommentTriviaSyntax>().Single();
+            var x = doc.DescendantNodes().OfType<IdentifierNameSyntax>().Single();
+            Assert.Equal(identifier, x.Identifier.ValueText);
+
+            var model = comp.GetSemanticModel(tree);
+            var symbolInfo = model.GetSymbolInfo(x);
+            Assert.Null(symbolInfo.Symbol);
+            Assert.True(symbolInfo.IsEmpty);
+            Assert.Equal(CandidateReason.None, symbolInfo.CandidateReason);
+            Assert.Empty(symbolInfo.CandidateSymbols);
         }
 
         [Fact]
@@ -3165,6 +3359,110 @@ namespace System.Runtime.CompilerServices
 
             var model = comp.GetSemanticModel(tree, ignoreAccessibility: false);
             Assert.Equal(SymbolKind.Property, model.GetSymbolInfo(cref).Symbol!.Kind);
+
+            var property = comp.GetMember("C.I1");
+            AssertEx.Equal(
+@"<member name=""P:C.I1"">
+    <summary>Description for <see cref=""P:C.I1""/></summary>
+</member>
+", property.GetDocumentationCommentXml());
+        }
+
+        [Fact]
+        public void XmlDoc_Cref_OtherMember()
+        {
+            var src = @"
+/// <summary>Summary</summary>
+/// <param name=""I1"">Description for <see cref=""I2""/></param>
+public record struct C(int I1, int I2)
+{
+    /// <summary>Summary</summary>
+    /// <param name=""x"">Description for <see cref=""x""/></param>
+    public void M(int x) { }
+}
+
+namespace System.Runtime.CompilerServices
+{
+    /// <summary>Ignored</summary>
+    public static class IsExternalInit
+    {
+    }
+}
+";
+
+            var comp = CreateCompilation(src, parseOptions: TestOptions.RegularWithDocumentationComments);
+            comp.VerifyDiagnostics(
+                // (4,36): warning CS1573: Parameter 'I2' has no matching param tag in the XML comment for 'C.C(int, int)' (but other parameters do)
+                // public record struct C(int I1, int I2)
+                Diagnostic(ErrorCode.WRN_MissingParamTag, "I2").WithArguments("I2", "C.C(int, int)").WithLocation(4, 36),
+                // (7,52): warning CS1574: XML comment has cref attribute 'x' that could not be resolved
+                //     /// <param name="x">Description for <see cref="x"/></param>
+                Diagnostic(ErrorCode.WRN_BadXMLRef, "x").WithArguments("x").WithLocation(7, 52)
+                );
+
+            var tree = comp.SyntaxTrees.Single();
+            var docComments = tree.GetCompilationUnitRoot().DescendantTrivia().Select(trivia => trivia.GetStructure()).OfType<DocumentationCommentTriviaSyntax>();
+            var cref = docComments.First().DescendantNodes().OfType<XmlCrefAttributeSyntax>().First().Cref;
+            Assert.Equal("I2", cref.ToString());
+
+            var model = comp.GetSemanticModel(tree, ignoreAccessibility: false);
+            Assert.Equal(SymbolKind.Property, model.GetSymbolInfo(cref).Symbol!.Kind);
+
+            var property = comp.GetMember("C.I1");
+            AssertEx.Equal(
+@"<member name=""P:C.I1"">
+    <summary>Description for <see cref=""P:C.I2""/></summary>
+</member>
+", property.GetDocumentationCommentXml());
+        }
+
+        [Fact]
+        public void XmlDoc_SeeAlso_InsideParamTag()
+        {
+            var src = @"
+/// <summary>Summary</summary>
+/// <param name=""I1"">Description for <seealso cref=""I2""/>something like I2</seealso></param>
+public record struct C(int I1, int I2)
+{
+    /// <summary>Summary</summary>
+    /// <param name=""x"">Description for <see cref=""x""/></param>
+    public void M(int x) { }
+}
+
+namespace System.Runtime.CompilerServices
+{
+    /// <summary>Ignored</summary>
+    public static class IsExternalInit
+    {
+    }
+}
+";
+
+            var comp = CreateCompilation(src, parseOptions: TestOptions.RegularWithDocumentationComments);
+            comp.VerifyDiagnostics(
+                // (3,77): warning CS1570: XML comment has badly formed XML -- 'End tag 'seealso' does not match the start tag 'param'.'
+                // /// <param name="I1">Description for <seealso cref="I2"/>something like I2</seealso></param>
+                Diagnostic(ErrorCode.WRN_XMLParseError, "seealso").WithArguments("seealso", "param").WithLocation(3, 77),
+                // (3,85): warning CS1570: XML comment has badly formed XML -- 'End tag was not expected at this location.'
+                // /// <param name="I1">Description for <seealso cref="I2"/>something like I2</seealso></param>
+                Diagnostic(ErrorCode.WRN_XMLParseError, "<").WithLocation(3, 85),
+                // (7,52): warning CS1574: XML comment has cref attribute 'x' that could not be resolved
+                //     /// <param name="x">Description for <see cref="x"/></param>
+                Diagnostic(ErrorCode.WRN_BadXMLRef, "x").WithArguments("x").WithLocation(7, 52)
+                );
+
+            var tree = comp.SyntaxTrees.Single();
+            var docComments = tree.GetCompilationUnitRoot().DescendantTrivia().Select(trivia => trivia.GetStructure()).OfType<DocumentationCommentTriviaSyntax>();
+            var cref = docComments.First().DescendantNodes().OfType<XmlCrefAttributeSyntax>().First().Cref;
+            Assert.Equal("I2", cref.ToString());
+
+            var model = comp.GetSemanticModel(tree, ignoreAccessibility: false);
+            Assert.Equal(SymbolKind.Property, model.GetSymbolInfo(cref).Symbol!.Kind);
+
+            var property = comp.GetMember("C.I1");
+            AssertEx.Equal(
+@"<!-- Badly formed XML comment ignored for member ""P:C.I1"" -->
+", property.GetDocumentationCommentXml());
         }
 
         [Fact]
@@ -3600,7 +3898,7 @@ record struct A(int I, string S);
         }
 
         [Fact]
-        public void Deconstruct_WihtNonReadOnlyGetter_GeneratedAsNonReadOnly()
+        public void Deconstruct_WithNonReadOnlyGetter_GeneratedAsNonReadOnly()
         {
             var src = @"
 record struct A(int I, string S)
@@ -3700,7 +3998,7 @@ record struct B(int X)
 $@"
 record struct A(int X)
 {{
-    { accessibility } void Deconstruct(out int a)
+    {accessibility} void Deconstruct(out int a)
         => throw null;
 }}
 ";
@@ -3766,14 +4064,21 @@ record struct Pos2(int X)
     public int X { get { return x; } set { x = value; } }
 }
 ";
-            var comp = CreateCompilation(source);
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
             comp.VerifyEmitDiagnostics(
-                // (2,15): error CS0171: Field 'Pos.x' must be fully assigned before control is returned to the caller
+                // (2,15): error CS0171: Field 'Pos.x' must be fully assigned before control is returned to the caller. Consider updating to language version '11.0' to auto-default the field.
                 // record struct Pos(int X)
-                Diagnostic(ErrorCode.ERR_UnassignedThis, "Pos").WithArguments("Pos.x").WithLocation(2, 15),
-                // (5,16): error CS8050: Only auto-implemented properties can have initializers.
+                Diagnostic(ErrorCode.ERR_UnassignedThisUnsupportedVersion, "Pos").WithArguments("Pos.x", "11.0").WithLocation(2, 15),
+                // (5,16): error CS8050: Only auto-implemented properties, or properties that use the 'field' keyword, can have initializers.
                 //     public int X { get { return x; } set { x = value; } } = X;
-                Diagnostic(ErrorCode.ERR_InitializerOnNonAutoProperty, "X").WithArguments("Pos.X").WithLocation(5, 16)
+                Diagnostic(ErrorCode.ERR_InitializerOnNonAutoProperty, "X").WithLocation(5, 16)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular11);
+            comp.VerifyEmitDiagnostics(
+                // (5,16): error CS8050: Only auto-implemented properties, or properties that use the 'field' keyword, can have initializers.
+                //     public int X { get { return x; } set { x = value; } } = X;
+                Diagnostic(ErrorCode.ERR_InitializerOnNonAutoProperty, "X").WithLocation(5, 16)
                 );
         }
 
@@ -4001,7 +4306,7 @@ record struct B;
 $@"
 record struct A
 {{
-    { accessibility } bool Equals(A x)
+    {accessibility} bool Equals(A x)
         => throw null;
 
     bool System.IEquatable<A>.Equals(A x) => throw null;
@@ -4031,7 +4336,7 @@ record struct A
 $@"
 record struct A
 {{
-    { accessibility } bool Equals(A x)
+    {accessibility} bool Equals(A x)
         => throw null;
 
     bool System.IEquatable<A>.Equals(A x) => throw null;
@@ -4275,7 +4580,7 @@ namespace System.Text
     }
 }
 ";
-            var comp = CreateEmptyCompilation(src, parseOptions: TestOptions.RegularPreview);
+            var comp = CreateEmptyCompilation(src, parseOptions: TestOptions.RegularPreview.WithNoRefSafetyRulesAttribute());
 
             comp.VerifyEmitDiagnostics(
                 // warning CS8021: No value for RuntimeMetadataVersion found. No assembly containing System.Object was found nor was a value for RuntimeMetadataVersion specified through options.
@@ -4552,7 +4857,7 @@ namespace System.Text
     }
 }
 ";
-            var comp = CreateEmptyCompilation(src, parseOptions: TestOptions.RegularPreview);
+            var comp = CreateEmptyCompilation(src, parseOptions: TestOptions.RegularPreview.WithNoRefSafetyRulesAttribute());
 
             comp.VerifyEmitDiagnostics(
                 // warning CS8021: No value for RuntimeMetadataVersion found. No assembly containing System.Object was found nor was a value for RuntimeMetadataVersion specified through options.
@@ -5127,21 +5432,24 @@ record struct C1
 
             v.VerifyIL("C1." + WellKnownMemberNames.PrintMembersMethodName, @"
 {
-  // Code size       38 (0x26)
+  // Code size       41 (0x29)
   .maxstack  2
+  .locals init (int V_0)
   IL_0000:  ldarg.1
   IL_0001:  ldstr      ""field = ""
   IL_0006:  callvirt   ""System.Text.StringBuilder System.Text.StringBuilder.Append(string)""
   IL_000b:  pop
   IL_000c:  ldarg.1
   IL_000d:  ldarg.0
-  IL_000e:  ldflda     ""int C1.field""
-  IL_0013:  constrained. ""int""
-  IL_0019:  callvirt   ""string object.ToString()""
-  IL_001e:  callvirt   ""System.Text.StringBuilder System.Text.StringBuilder.Append(string)""
-  IL_0023:  pop
-  IL_0024:  ldc.i4.1
-  IL_0025:  ret
+  IL_000e:  ldfld      ""int C1.field""
+  IL_0013:  stloc.0
+  IL_0014:  ldloca.s   V_0
+  IL_0016:  constrained. ""int""
+  IL_001c:  callvirt   ""string object.ToString()""
+  IL_0021:  callvirt   ""System.Text.StringBuilder System.Text.StringBuilder.Append(string)""
+  IL_0026:  pop
+  IL_0027:  ldc.i4.1
+  IL_0028:  ret
 }
 ");
         }
@@ -5680,7 +5988,6 @@ class Attr1 : System.Attribute {}
 
             Assert.Equal(1, analyzer.FireCount0);
             Assert.Equal(1, analyzer.FireCountRecordStructDeclarationA);
-            Assert.Equal(1, analyzer.FireCountRecordStructDeclarationACtor);
             Assert.Equal(1, analyzer.FireCount3);
             Assert.Equal(1, analyzer.FireCountSimpleBaseTypeI1onA);
             Assert.Equal(1, analyzer.FireCount5);
@@ -5697,7 +6004,6 @@ class Attr1 : System.Attribute {}
         {
             public int FireCount0;
             public int FireCountRecordStructDeclarationA;
-            public int FireCountRecordStructDeclarationACtor;
             public int FireCount3;
             public int FireCountSimpleBaseTypeI1onA;
             public int FireCount5;
@@ -5812,9 +6118,6 @@ class Attr1 : System.Attribute {}
                 {
                     case "A":
                         Interlocked.Increment(ref FireCountRecordStructDeclarationA);
-                        break;
-                    case "A..ctor([System.Int32 X = 0])":
-                        Interlocked.Increment(ref FireCountRecordStructDeclarationACtor);
                         break;
                     default:
                         Assert.True(false);
@@ -6285,7 +6588,7 @@ interface I1 {}
                         Assert.Equal(OperationKind.ParameterInitializer, context.OperationBlocks[0].Kind);
                         Assert.Equal("= 0", context.OperationBlocks[0].Syntax.ToString());
 
-                        Assert.Equal(OperationKind.None, context.OperationBlocks[1].Kind);
+                        Assert.Equal(OperationKind.Attribute, context.OperationBlocks[1].Kind);
                         Assert.Equal("Attr1(100)", context.OperationBlocks[1].Syntax.ToString());
 
                         break;
@@ -6390,7 +6693,6 @@ interface I1 {}
 
             Assert.Equal(1, analyzer.FireCount0);
             Assert.Equal(0, analyzer.FireCountRecordStructDeclarationA);
-            Assert.Equal(0, analyzer.FireCountRecordStructDeclarationACtor);
             Assert.Equal(1, analyzer.FireCount3);
             Assert.Equal(0, analyzer.FireCountSimpleBaseTypeI1onA);
             Assert.Equal(1, analyzer.FireCount5);
@@ -6923,6 +7225,9 @@ public struct B
                 // (8,28): error CS0747: Invalid initializer member declarator
                 //         return this with { i, j++, M2(), X = 2};
                 Diagnostic(ErrorCode.ERR_InvalidInitializerElementInitializer, "i").WithLocation(8, 28),
+                // (8,28): error CS0117: 'B' does not contain a definition for 'i'
+                //         return this with { i, j++, M2(), X = 2};
+                Diagnostic(ErrorCode.ERR_NoSuchMember, "i").WithArguments("B", "i").WithLocation(8, 28),
                 // (8,31): error CS0747: Invalid initializer member declarator
                 //         return this with { i, j++, M2(), X = 2};
                 Diagnostic(ErrorCode.ERR_InvalidInitializerElementInitializer, "j++").WithLocation(8, 31),
@@ -6947,9 +7252,16 @@ Block[B0] - Entry
             IFlowCaptureOperation: 0 (OperationKind.FlowCapture, Type: null, IsImplicit) (Syntax: 'this')
               Value:
                 IInstanceReferenceOperation (ReferenceKind: ContainingTypeInstance) (OperationKind.InstanceReference, Type: B) (Syntax: 'this')
-            IInvalidOperation (OperationKind.Invalid, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'i')
-              Children(1):
-                  IParameterReferenceOperation: i (OperationKind.ParameterReference, Type: System.Int32, IsInvalid) (Syntax: 'i')
+            ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: ?, IsInvalid, IsImplicit) (Syntax: 'i')
+              Left:
+                IInvalidOperation (OperationKind.Invalid, Type: ?, IsInvalid, IsImplicit) (Syntax: 'i')
+                  Children(1):
+                      IOperation:  (OperationKind.None, Type: null, IsInvalid) (Syntax: 'i')
+                        Children(1):
+                            IFlowCaptureReferenceOperation: 0 (OperationKind.FlowCaptureReference, Type: B, IsImplicit) (Syntax: 'this')
+              Right:
+                IInvalidOperation (OperationKind.Invalid, Type: null, IsInvalid, IsImplicit) (Syntax: 'i')
+                  Children(0)
             IInvalidOperation (OperationKind.Invalid, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'j++')
               Children(1):
                   IIncrementOrDecrementOperation (Postfix) (OperationKind.Increment, Type: System.Int32, IsInvalid) (Syntax: 'j++')
@@ -7291,12 +7603,34 @@ record struct C
 }
 ";
 
-            var comp = CreateCompilation(src);
+            var comp = CreateCompilation(src, parseOptions: TestOptions.Regular10);
             comp.VerifyDiagnostics(
-                // (8,13): error CS0188: The 'this' object cannot be used before all of its fields have been assigned
+                // (8,13): error CS0188: The 'this' object cannot be used before all of its fields have been assigned. Consider updating to language version '11.0' to auto-default the unassigned fields.
                 //         _ = this with { X = 42 }; // 1
-                Diagnostic(ErrorCode.ERR_UseDefViolationThis, "this").WithArguments("this").WithLocation(8, 13)
+                Diagnostic(ErrorCode.ERR_UseDefViolationThisUnsupportedVersion, "this").WithArguments("11.0").WithLocation(8, 13)
                 );
+
+            var verifier = CompileAndVerify(src, parseOptions: TestOptions.Regular11);
+            verifier.VerifyDiagnostics();
+            verifier.VerifyIL("C..ctor(string)", @"
+{
+  // Code size       31 (0x1f)
+  .maxstack  2
+  .locals init (C V_0)
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4.0
+  IL_0002:  stfld      ""int C.<X>k__BackingField""
+  IL_0007:  ldarg.0
+  IL_0008:  ldobj      ""C""
+  IL_000d:  stloc.0
+  IL_000e:  ldloca.s   V_0
+  IL_0010:  ldc.i4.s   42
+  IL_0012:  call       ""void C.X.set""
+  IL_0017:  ldarg.0
+  IL_0018:  initobj    ""C""
+  IL_001e:  ret
+}
+");
         }
 
         [Fact]
@@ -7677,21 +8011,23 @@ class Program
 }
 ";
             CreateCompilationWithMscorlibAndSpan(text, parseOptions: TestOptions.RegularPreview).VerifyDiagnostics(
-                // (12,48): error CS8352: Cannot use local 'inner' in this context because it may expose referenced variables outside of their declaration scope
+                // (12,30): error CS8352: Cannot use variable 'Field2 = inner' in this context because it may expose referenced variables outside of their declaration scope
                 //         return new S2() with { Field1 = outer, Field2 = inner };
-                Diagnostic(ErrorCode.ERR_EscapeLocal, "Field2 = inner").WithArguments("inner").WithLocation(12, 48),
-                // (23,34): error CS8352: Cannot use local 'inner' in this context because it may expose referenced variables outside of their declaration scope
+                Diagnostic(ErrorCode.ERR_EscapeVariable, "{ Field1 = outer, Field2 = inner }").WithArguments("Field2 = inner").WithLocation(12, 30),
+                // (23,32): error CS8352: Cannot use variable 'Field1 = inner' in this context because it may expose referenced variables outside of their declaration scope
                 //         result = new S2() with { Field1 = inner, Field2 = outer };
-                Diagnostic(ErrorCode.ERR_EscapeLocal, "Field1 = inner").WithArguments("inner").WithLocation(23, 34)
+                Diagnostic(ErrorCode.ERR_EscapeVariable, "{ Field1 = inner, Field2 = outer }").WithArguments("Field1 = inner").WithLocation(23, 32)
                 );
         }
 
-        [Fact]
-        public void WithExprOnStruct_OnRefStruct_ReceiverMayWrap()
+        [Theory]
+        [InlineData(LanguageVersion.CSharp10)]
+        [InlineData(LanguageVersion.CSharp11)]
+        public void WithExprOnStruct_OnRefStruct_ReceiverMayWrap(LanguageVersion languageVersion)
         {
             // Similar to test LocalWithNoInitializerEscape but wrapping method is used as receiver for `with` expression
-            var text = @"
-using System;
+            var text = @"using System;
+
 class Program
 {
     static void Main()
@@ -7712,14 +8048,14 @@ class Program
     }
 }
 ";
-            CreateCompilationWithMscorlibAndSpan(text, parseOptions: TestOptions.RegularPreview).VerifyDiagnostics(
-                // (9,26): error CS8352: Cannot use local 'local' in this context because it may expose referenced variables outside of their declaration scope
+            var comp = CreateCompilationWithMscorlibAndSpan(new[] { text, UnscopedRefAttributeDefinition }, parseOptions: TestOptions.Regular.WithLanguageVersion(languageVersion));
+            comp.VerifyDiagnostics(
+                // (9,26): error CS8352: Cannot use variable 'local' in this context because it may expose referenced variables outside of their declaration scope
                 //         sp = MayWrap(ref local) with { }; // 1, 2
-                Diagnostic(ErrorCode.ERR_EscapeLocal, "local").WithArguments("local").WithLocation(9, 26),
+                Diagnostic(ErrorCode.ERR_EscapeVariable, "local").WithArguments("local").WithLocation(9, 26),
                 // (9,14): error CS8347: Cannot use a result of 'Program.MayWrap(ref Span<int>)' in this context because it may expose variables referenced by parameter 'arg' outside of their declaration scope
                 //         sp = MayWrap(ref local) with { }; // 1, 2
-                Diagnostic(ErrorCode.ERR_EscapeCall, "MayWrap(ref local)").WithArguments("Program.MayWrap(ref System.Span<int>)", "arg").WithLocation(9, 14)
-                );
+                Diagnostic(ErrorCode.ERR_EscapeCall, "MayWrap(ref local)").WithArguments("Program.MayWrap(ref System.Span<int>)", "arg").WithLocation(9, 14));
         }
 
         [Fact]
@@ -9658,6 +9994,9 @@ public class C
                 // (7,26): error CS0747: Invalid initializer member declarator
                 //         var b = a with { i, j++, M2(), A = 20 };
                 Diagnostic(ErrorCode.ERR_InvalidInitializerElementInitializer, "i").WithLocation(7, 26),
+                // (7,26): error CS0117: '<anonymous type: int A>' does not contain a definition for 'i'
+                //         var b = a with { i, j++, M2(), A = 20 };
+                Diagnostic(ErrorCode.ERR_NoSuchMember, "i").WithArguments("<anonymous type: int A>", "i").WithLocation(7, 26),
                 // (7,29): error CS0747: Invalid initializer member declarator
                 //         var b = a with { i, j++, M2(), A = 20 };
                 Diagnostic(ErrorCode.ERR_InvalidInitializerElementInitializer, "j++").WithLocation(7, 29),
@@ -9708,9 +10047,8 @@ Block[B0] - Entry
             Predecessors: [B1]
             Statements (6)
                 ILocalReferenceOperation: a (OperationKind.LocalReference, Type: <anonymous type: System.Int32 A>) (Syntax: 'a')
-                IInvalidOperation (OperationKind.Invalid, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'i')
-                  Children(1):
-                      IParameterReferenceOperation: i (OperationKind.ParameterReference, Type: System.Int32, IsInvalid) (Syntax: 'i')
+                IInvalidOperation (OperationKind.Invalid, Type: null, IsInvalid, IsImplicit) (Syntax: 'i')
+                  Children(0)
                 IInvalidOperation (OperationKind.Invalid, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'j++')
                   Children(1):
                       IIncrementOrDecrementOperation (Postfix) (OperationKind.Increment, Type: System.Int32, IsInvalid) (Syntax: 'j++')
@@ -9764,39 +10102,12 @@ public class C
 
             var expectedDiagnostics = new[]
             {
-                // (7,26): error CS1513: } expected
+                // (7,26): error CS0131: The left-hand side of an assignment must be a variable, property or indexer
                 //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "[").WithLocation(7, 26),
-                // (7,26): error CS1002: ; expected
+                Diagnostic(ErrorCode.ERR_AssgLvalueExpected, "[0]").WithLocation(7, 26),
+                // (7,26): error CS0747: Invalid initializer member declarator
                 //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, "[").WithLocation(7, 26),
-                // (7,26): error CS7014: Attributes are not valid in this context.
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_AttributesNotAllowed, "[").WithLocation(7, 26),
-                // (7,27): error CS1001: Identifier expected
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_IdentifierExpected, "0").WithLocation(7, 27),
-                // (7,27): error CS1003: Syntax error, ']' expected
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_SyntaxError, "0").WithArguments("]", "").WithLocation(7, 27),
-                // (7,28): error CS1002: ; expected
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, "]").WithLocation(7, 28),
-                // (7,28): error CS1513: } expected
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_RbraceExpected, "]").WithLocation(7, 28),
-                // (7,30): error CS1525: Invalid expression term '='
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_InvalidExprTerm, "=").WithArguments("=").WithLocation(7, 30),
-                // (7,35): error CS1002: ; expected
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, "}").WithLocation(7, 35),
-                // (7,36): error CS1597: Semicolon after method or accessor block is not valid
-                //         var b = a with { [0] = 20 };
-                Diagnostic(ErrorCode.ERR_UnexpectedSemicolon, ";").WithLocation(7, 36),
-                // (9,1): error CS1022: Type or namespace definition, or end-of-file expected
-                // }
-                Diagnostic(ErrorCode.ERR_EOFExpected, "}").WithLocation(9, 1)
+                Diagnostic(ErrorCode.ERR_InvalidInitializerElementInitializer, "[0] = 20").WithLocation(7, 26)
             };
             var comp = CreateCompilation(src, parseOptions: TestOptions.RegularPreview);
             comp.VerifyEmitDiagnostics(expectedDiagnostics);
@@ -9846,14 +10157,16 @@ Block[B0] - Entry
             CaptureIds: [1]
             Block[B2] - Block
                 Predecessors: [B1]
-                Statements (2)
+                Statements (3)
                     IFlowCaptureOperation: 1 (OperationKind.FlowCapture, Type: null, IsImplicit) (Syntax: 'a')
                       Value:
                         ILocalReferenceOperation: a (OperationKind.LocalReference, Type: <anonymous type: System.Int32 A>) (Syntax: 'a')
 
-                    IFlowCaptureOperation: 2 (OperationKind.FlowCapture, Type: null, IsInvalid, IsImplicit) (Syntax: 'a with { ')
+                    ILiteralOperation (OperationKind.Literal, Type: System.Int32, Constant: 20, IsInvalid) (Syntax: '20')
+
+                    IFlowCaptureOperation: 2 (OperationKind.FlowCapture, Type: null, IsInvalid, IsImplicit) (Syntax: 'a with { [0] = 20 }')
                       Value:
-                        IPropertyReferenceOperation: System.Int32 <anonymous type: System.Int32 A>.A { get; } (OperationKind.PropertyReference, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { ')
+                        IPropertyReferenceOperation: System.Int32 <anonymous type: System.Int32 A>.A { get; } (OperationKind.PropertyReference, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { [0] = 20 }')
                           Instance Receiver:
                             IFlowCaptureReferenceOperation: 1 (OperationKind.FlowCaptureReference, Type: <anonymous type: System.Int32 A>, IsImplicit) (Syntax: 'a')
 
@@ -9864,46 +10177,27 @@ Block[B0] - Entry
         Block[B3] - Block
             Predecessors: [B2]
             Statements (1)
-                ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'b = a with { ')
+                ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'b = a with { [0] = 20 }')
                   Left:
-                    ILocalReferenceOperation: b (IsDeclaration: True) (OperationKind.LocalReference, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'b = a with { ')
+                    ILocalReferenceOperation: b (IsDeclaration: True) (OperationKind.LocalReference, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'b = a with { [0] = 20 }')
                   Right:
-                    IAnonymousObjectCreationOperation (OperationKind.AnonymousObjectCreation, Type: <anonymous type: System.Int32 A>, IsInvalid) (Syntax: 'a with { ')
+                    IAnonymousObjectCreationOperation (OperationKind.AnonymousObjectCreation, Type: <anonymous type: System.Int32 A>, IsInvalid) (Syntax: 'a with { [0] = 20 }')
                       Initializers(1):
-                          ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { ')
+                          ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { [0] = 20 }')
                             Left:
-                              IPropertyReferenceOperation: System.Int32 <anonymous type: System.Int32 A>.A { get; } (OperationKind.PropertyReference, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { ')
+                              IPropertyReferenceOperation: System.Int32 <anonymous type: System.Int32 A>.A { get; } (OperationKind.PropertyReference, Type: System.Int32, IsInvalid, IsImplicit) (Syntax: 'a with { [0] = 20 }')
                                 Instance Receiver:
-                                  IInstanceReferenceOperation (ReferenceKind: ImplicitReceiver) (OperationKind.InstanceReference, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'a with { ')
+                                  IInstanceReferenceOperation (ReferenceKind: ImplicitReceiver) (OperationKind.InstanceReference, Type: <anonymous type: System.Int32 A>, IsInvalid, IsImplicit) (Syntax: 'a with { [0] = 20 }')
                             Right:
                               IFlowCaptureReferenceOperation: 2 (OperationKind.FlowCaptureReference, Type: <anonymous type: System.Int32 A>, IsImplicit) (Syntax: 'a')
 
             Next (Regular) Block[B4]
-                Leaving: {R3}
+                Leaving: {R3} {R1}
     }
-
-    Block[B4] - Block
-        Predecessors: [B3]
-        Statements (2)
-            IExpressionStatementOperation (OperationKind.ExpressionStatement, Type: null, IsInvalid) (Syntax: '[0')
-              Expression:
-                ILiteralOperation (OperationKind.Literal, Type: System.Int32, Constant: 0, IsInvalid) (Syntax: '0')
-
-            IExpressionStatementOperation (OperationKind.ExpressionStatement, Type: null, IsInvalid) (Syntax: '= 20 ')
-              Expression:
-                ISimpleAssignmentOperation (OperationKind.SimpleAssignment, Type: ?, IsInvalid) (Syntax: '= 20')
-                  Left:
-                    IInvalidOperation (OperationKind.Invalid, Type: null, IsInvalid) (Syntax: '')
-                      Children(0)
-                  Right:
-                    ILiteralOperation (OperationKind.Literal, Type: System.Int32, Constant: 20) (Syntax: '20')
-
-        Next (Regular) Block[B5]
-            Leaving: {R1}
 }
 
-Block[B5] - Exit
-    Predecessors: [B4]
+Block[B4] - Exit
+    Predecessors: [B3]
     Statements (0)
 ";
             VerifyFlowGraphAndDiagnosticsForTest<BlockSyntax>(src, expectedFlowGraph, expectedDiagnostics, parseOptions: TestOptions.RegularPreview);
@@ -10321,8 +10615,7 @@ record struct A(int X)
                 Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "struct").WithArguments("record structs", "10.0").WithLocation(8, 8),
                 // (8,17): error CS8773: Feature 'positional fields in records' is not available in C# 9.0. Please use language version 10.0 or greater.
                 // record struct A(int X)
-                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "int X").WithArguments("positional fields in records", "10.0").WithLocation(8, 17)
-                );
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "int X").WithArguments("positional fields in records", "10.0").WithLocation(8, 17));
 
             comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
             comp.VerifyDiagnostics();
@@ -10378,7 +10671,7 @@ unsafe record struct C(int[] P)
                 Diagnostic(ErrorCode.ERR_BadRecordMemberForPositionalParameter, "P").WithArguments("C.P", "int[]", "P").WithLocation(2, 30),
                 // (4,22): error CS8908: The type 'int*' may not be used for a field of a record.
                 //     public fixed int P[2];
-                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "P").WithArguments("int*").WithLocation(4, 22)
+                Diagnostic(ErrorCode.ERR_BadFieldTypeInRecord, "int").WithArguments("int*").WithLocation(4, 18)
                 );
         }
 
@@ -10587,13 +10880,13 @@ record class Boxed(string Text)
 ";
             var comp = CreateCompilation(src);
             comp.VerifyEmitDiagnostics(
-                // (4,13): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (4,13): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     private Value(int X) { } // 1
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "Value").WithLocation(4, 13),
-                // (5,13): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (5,13): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     private Value(Value original) { } // 2
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "Value").WithLocation(5, 13),
-                // (10,13): error CS8862: A constructor declared in a record with parameter list must have 'this' constructor initializer.
+                // (10,13): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
                 //     private Boxed(int X) { } // 3
                 Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "Boxed").WithLocation(10, 13),
                 // (11,13): error CS8878: A copy constructor 'Boxed.Boxed(Boxed)' must be public or protected because the record is not sealed.
@@ -10615,6 +10908,608 @@ record struct Value(int I)
 ";
             var comp = CreateCompilation(src);
             CompileAndVerify(comp, expectedOutput: "Value { I = 42 }");
+        }
+
+        [Fact]
+        public void ExplicitConstructors_01()
+        {
+            var source =
+@"using static System.Console;
+record struct S1
+{
+}
+record struct S2
+{
+    public S2() { }
+}
+record struct S3
+{
+    public S3(object o) { }
+}
+class Program
+{
+    static void Main()
+    {
+        WriteLine(new S1());
+        WriteLine(new S2());
+        WriteLine(new S3());
+        WriteLine(new S3(null));
+    }
+}";
+            var verifier = CompileAndVerify(source, expectedOutput:
+@"S1 { }
+S2 { }
+S3 { }
+S3 { }
+");
+            verifier.VerifyMissing("S1..ctor()");
+            verifier.VerifyIL("S2..ctor()",
+@"{
+  // Code size        1 (0x1)
+  .maxstack  0
+  IL_0000:  ret
+}");
+            verifier.VerifyMissing("S3..ctor()");
+            verifier.VerifyIL("S3..ctor(object)",
+@"{
+  // Code size        1 (0x1)
+  .maxstack  0
+  IL_0000:  ret
+}");
+        }
+
+        [Fact]
+        public void ExplicitConstructors_02()
+        {
+            var source =
+@"record struct S1
+{
+    public S1(object o) { }
+}
+record struct S2()
+{
+    public S2(object o) { }
+}
+record struct S3(char A)
+{
+    public S3(object o) { }
+}
+record struct S4(char A, char B)
+{
+    public S4(object o) { }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (7,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S2(object o) { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S2").WithLocation(7, 12),
+                // (11,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S3(object o) { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S3").WithLocation(11, 12),
+                // (15,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S4(object o) { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S4").WithLocation(15, 12));
+        }
+
+        [Fact]
+        public void ExplicitConstructors_03()
+        {
+            var source =
+@"using static System.Console;
+record struct S1
+{
+    public S1(object o) : this() { }
+}
+record struct S2()
+{
+    public S2(object o) : this() { }
+}
+class Program
+{
+    static void Main()
+    {
+        WriteLine(new S1());
+        WriteLine(new S2());
+    }
+}";
+            CompileAndVerify(source, expectedOutput:
+@"S1 { }
+S2 { }
+");
+        }
+
+        [Fact]
+        public void ExplicitConstructors_04()
+        {
+            var source =
+@"using static System.Console;
+record struct S0
+{
+    internal object F = 0;
+    public S0() { }
+}
+record struct S1
+{
+    internal object F = 1;
+    public S1(object o) : this() { F = o; }
+}
+record struct S2()
+{
+    internal object F = 2;
+    public S2(object o) : this() { F = o; }
+}
+class Program
+{
+    static void Main()
+    {
+        WriteLine(new S0().F);
+        WriteLine(new S1().F);
+        WriteLine(new S1(-1).F);
+        WriteLine(new S2().F);
+        WriteLine(new S2(-2).F);
+    }
+}";
+            CompileAndVerify(source, expectedOutput:
+@"0
+
+-1
+2
+-2
+");
+        }
+
+        [Fact]
+        [WorkItem(58328, "https://github.com/dotnet/roslyn/issues/58328")]
+        public void ExplicitConstructors_05()
+        {
+            var source =
+@"record struct S3(char A)
+{
+    public S3(object o) : this() { }
+}
+record struct S4(char A, char B)
+{
+    public S4(object o) : this() { }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (3,27): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S3(object o) : this() { }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(3, 27),
+                // (7,27): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S4(object o) : this() { }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(7, 27));
+        }
+
+        [Fact]
+        [WorkItem(58328, "https://github.com/dotnet/roslyn/issues/58328")]
+        public void ExplicitConstructors_06()
+        {
+            var source =
+@"record struct S3(char A)
+{
+    internal object F = 3;
+    public S3(object o) : this() { F = o; }
+}
+record struct S4(char A, char B)
+{
+    internal object F = 4;
+    public S4(object o) : this() { F = o; }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (4,27): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S3(object o) : this() { F = o; }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(4, 27),
+                // (9,27): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S4(object o) : this() { F = o; }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(9, 27));
+        }
+
+        [Fact]
+        public void ExplicitConstructors_07()
+        {
+            var source =
+@"using static System.Console;
+record struct S1
+{
+    public S1(object o) : this() { }
+    public S1() { }
+}
+record struct S3(char A)
+{
+    public S3(object o) : this() { }
+    public S3() : this('a') { }
+}
+record struct S4(char A, char B)
+{
+    public S4(object o) : this() { }
+    public S4() : this('a', 'b') { }
+}
+class Program
+{
+    static void Main()
+    {
+        WriteLine(new S1());
+        WriteLine(new S1(1));
+        WriteLine(new S3());
+        WriteLine(new S3(3));
+        WriteLine(new S4());
+        WriteLine(new S4(4));
+    }
+}";
+            var verifier = CompileAndVerify(source, expectedOutput:
+@"S1 { }
+S1 { }
+S3 { A = a }
+S3 { A = a }
+S4 { A = a, B = b }
+S4 { A = a, B = b }
+");
+            verifier.VerifyIL("S1..ctor()",
+@"{
+  // Code size        1 (0x1)
+  .maxstack  0
+  IL_0000:  ret
+}");
+            verifier.VerifyIL("S1..ctor(object)",
+@"{
+  // Code size        7 (0x7)
+  .maxstack  1
+  IL_0000:  ldarg.0
+  IL_0001:  call       ""S1..ctor()""
+  IL_0006:  ret
+}");
+            verifier.VerifyIL("S3..ctor()",
+@"{
+  // Code size        9 (0x9)
+  .maxstack  2
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4.s   97
+  IL_0003:  call       ""S3..ctor(char)""
+  IL_0008:  ret
+}");
+            verifier.VerifyIL("S3..ctor(object)",
+@"{
+  // Code size        7 (0x7)
+  .maxstack  1
+  IL_0000:  ldarg.0
+  IL_0001:  call       ""S3..ctor()""
+  IL_0006:  ret
+}");
+            verifier.VerifyIL("S4..ctor()",
+@"{
+  // Code size       11 (0xb)
+  .maxstack  3
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4.s   97
+  IL_0003:  ldc.i4.s   98
+  IL_0005:  call       ""S4..ctor(char, char)""
+  IL_000a:  ret
+}");
+            verifier.VerifyIL("S4..ctor(object)",
+@"{
+  // Code size        7 (0x7)
+  .maxstack  1
+  IL_0000:  ldarg.0
+  IL_0001:  call       ""S4..ctor()""
+  IL_0006:  ret
+}");
+        }
+
+        [Fact]
+        public void ExplicitConstructors_08()
+        {
+            var source =
+@"record struct S2()
+{
+    public S2(object o) : this() { }
+    public S2() { }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (3,27): error CS2121: The call is ambiguous between the following methods or properties: 'S2.S2()' and 'S2.S2()'
+                //     public S2(object o) : this() { }
+                Diagnostic(ErrorCode.ERR_AmbigCall, "this").WithArguments("S2.S2()", "S2.S2()").WithLocation(3, 27),
+                // (4,12): error CS2111: Type 'S2' already defines a member called 'S2' with the same parameter types
+                //     public S2() { }
+                Diagnostic(ErrorCode.ERR_MemberAlreadyExists, "S2").WithArguments("S2", "S2").WithLocation(4, 12),
+                // (4,12): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S2() { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "S2").WithLocation(4, 12));
+        }
+
+        [Fact]
+        public void ExplicitConstructors_09()
+        {
+            var source =
+@"record struct S1
+{
+    public S1(object o) : base() { }
+}
+record struct S2()
+{
+    public S2(object o) : base() { }
+}
+record struct S3(char A)
+{
+    public S3(object o) : base() { }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (3,12): error CS0522: 'S1': structs cannot call base class constructors
+                //     public S1(object o) : base() { }
+                Diagnostic(ErrorCode.ERR_StructWithBaseConstructorCall, "S1").WithArguments("S1").WithLocation(3, 12),
+                // (7,12): error CS0522: 'S2': structs cannot call base class constructors
+                //     public S2(object o) : base() { }
+                Diagnostic(ErrorCode.ERR_StructWithBaseConstructorCall, "S2").WithArguments("S2").WithLocation(7, 12),
+                // (7,27): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S2(object o) : base() { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "base").WithLocation(7, 27),
+                // (11,12): error CS0522: 'S3': structs cannot call base class constructors
+                //     public S3(object o) : base() { }
+                Diagnostic(ErrorCode.ERR_StructWithBaseConstructorCall, "S3").WithArguments("S3").WithLocation(11, 12),
+                // (11,27): error CS8862: A constructor declared in a type with parameter list must have 'this' constructor initializer.
+                //     public S3(object o) : base() { }
+                Diagnostic(ErrorCode.ERR_UnexpectedOrMissingConstructorInitializerInRecord, "base").WithLocation(11, 27));
+        }
+
+        [Fact]
+        [WorkItem(58328, "https://github.com/dotnet/roslyn/issues/58328")]
+        public void ExplicitConstructors_10()
+        {
+            var source =
+@"record struct S(object F)
+{
+    public object F;
+    public S(int i) : this() { F = i; }
+}";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (1,15): error CS0171: Field 'S.F' must be fully assigned before control is returned to the caller. Consider updating to language version '11.0' to auto-default the field.
+                // record struct S(object F)
+                Diagnostic(ErrorCode.ERR_UnassignedThisUnsupportedVersion, "S").WithArguments("S.F", "11.0").WithLocation(1, 15),
+                // (1,24): warning CS8907: Parameter 'F' is unread. Did you forget to use it to initialize the property with that name?
+                // record struct S(object F)
+                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "F").WithArguments("F").WithLocation(1, 24),
+                // (4,23): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S(int i) : this() { F = i; }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(4, 23));
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular11);
+            comp.VerifyDiagnostics(
+                // (1,24): warning CS8907: Parameter 'F' is unread. Did you forget to use it to initialize the property with that name?
+                // record struct S(object F)
+                Diagnostic(ErrorCode.WRN_UnreadRecordParameter, "F").WithArguments("F").WithLocation(1, 24),
+                // (4,23): error CS8982: A constructor declared in a 'struct' with parameter list must have a 'this' initializer that calls the primary constructor or an explicitly declared constructor.
+                //     public S(int i) : this() { F = i; }
+                Diagnostic(ErrorCode.ERR_RecordStructConstructorCallsDefaultConstructor, "this").WithLocation(4, 23));
+        }
+
+        [Fact]
+        public void ExplicitConstructors_11()
+        {
+            var source =
+@"record struct S(int X)
+{
+    static internal int F = 1;
+    static S() : this() { }
+}";
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (4,18): error CS0514: 'S': static constructor cannot have an explicit 'this' or 'base' constructor call
+                //     static S() : this() { }
+                Diagnostic(ErrorCode.ERR_StaticConstructorWithExplicitConstructorCall, "this").WithArguments("S").WithLocation(4, 18));
+        }
+
+        [Fact]
+        public void StructNamedRecord()
+        {
+            var source = "struct record { } ";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // struct record { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(1, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 8)
+                );
+        }
+
+        [Fact]
+        public void ClassNamedRecord()
+        {
+            var source = "class record { } ";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // class record { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(1, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 7)
+                );
+        }
+
+        [Fact]
+        public void StructNamedRecord_WithTypeParameters()
+        {
+            var source = "struct record<T> { } ";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // struct record { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(1, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (1,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record<T> { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 8)
+                );
+        }
+
+        [Fact]
+        public void ClassNamedRecord_WithTypeParameters()
+        {
+            var source = "class record<T> { } ";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // class record<T> { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(1, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record<T> { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (1,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record<T> { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(1, 7)
+                );
+        }
+
+        [Fact]
+        public void StructNamedRecord_WithBaseList()
+        {
+            var source = @"
+interface I { }
+struct record : I { }
+";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // struct record : I { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(3, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 8)
+                );
+        }
+
+        [Fact]
+        public void StructNamedRecord_WithBaseList_Generic()
+        {
+            var source = @"
+interface I { }
+struct record<T> : I { }
+";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // struct record<T> : I { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(3, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record<T> : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 8)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (3,8): warning CS8860: Types and aliases should not be named 'record'.
+                // struct record<T> : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 8)
+                );
+        }
+
+        [Fact]
+        public void ClassNamedRecord_WithBaseList_Generic()
+        {
+            var source = @"
+interface I { }
+class record<T> : I { }
+";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular8);
+            comp.VerifyDiagnostics(
+                // (3,7): warning CS8981: The type name 'record' only contains lower-cased ascii characters. Such names may become reserved for the language.
+                // class record<T> : I { }
+                Diagnostic(ErrorCode.WRN_LowerCaseTypeName, "record").WithArguments("record").WithLocation(3, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular9);
+            comp.VerifyDiagnostics(
+                // (3,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record<T> : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 7)
+                );
+
+            comp = CreateCompilation(source, parseOptions: TestOptions.Regular10);
+            comp.VerifyDiagnostics(
+                // (3,7): warning CS8860: Types and aliases should not be named 'record'.
+                // class record<T> : I { }
+                Diagnostic(ErrorCode.WRN_RecordNamedDisallowed, "record").WithLocation(3, 7)
+                );
+        }
+
+        [Fact]
+        [WorkItem(64238, "https://github.com/dotnet/roslyn/issues/64238")]
+        public void NoMethodBodiesInComImportType()
+        {
+            var source1 =
+@"
+[System.Runtime.InteropServices.ComImport]
+[System.Runtime.InteropServices.Guid(""00112233-4455-6677-8899-aabbccddeeff"")]
+record struct R1(int x);
+";
+            var compilation1 = CreateCompilation(source1, options: TestOptions.DebugDll, targetFramework: TargetFramework.Net60);
+
+            compilation1.VerifyDiagnostics(
+                // (2,2): error CS0592: Attribute 'System.Runtime.InteropServices.ComImport' is not valid on this declaration type. It is only valid on 'class, interface' declarations.
+                // [System.Runtime.InteropServices.ComImport]
+                Diagnostic(ErrorCode.ERR_AttributeOnBadSymbolType, "System.Runtime.InteropServices.ComImport").WithArguments("System.Runtime.InteropServices.ComImport", "class, interface").WithLocation(2, 2)
+                );
         }
     }
 }

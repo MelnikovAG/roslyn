@@ -26,7 +26,7 @@ Namespace Microsoft.CodeAnalysis.CodeCleanup.Providers
             End Get
         End Property
 
-        Protected Overrides Async Function GetRewriterAsync(document As Document, root As SyntaxNode, spans As ImmutableArray(Of TextSpan), workspace As Workspace, cancellationToken As CancellationToken) As Task(Of Rewriter)
+        Protected Overrides Async Function GetRewriterAsync(document As Document, root As SyntaxNode, spans As ImmutableArray(Of TextSpan), cancellationToken As CancellationToken) As Task(Of Rewriter)
             Return Await AddMissingTokensRewriter.CreateAsync(document, spans, cancellationToken).ConfigureAwait(False)
         End Function
 
@@ -141,9 +141,9 @@ Namespace Microsoft.CodeAnalysis.CodeCleanup.Providers
                     Return newNode
                 End If
 
-                If Not TypeOf node.Expression Is NameSyntax AndAlso
-                   Not TypeOf node.Expression Is ParenthesizedExpressionSyntax AndAlso
-                   Not TypeOf node.Expression Is MemberAccessExpressionSyntax Then
+                If TypeOf node.Expression IsNot NameSyntax AndAlso
+                   TypeOf node.Expression IsNot ParenthesizedExpressionSyntax AndAlso
+                   TypeOf node.Expression IsNot MemberAccessExpressionSyntax Then
                     Return newNode
                 End If
 

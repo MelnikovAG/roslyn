@@ -31,7 +31,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Classification
             => New(text, ClassificationTypeNames.ClassName);
 
         [DebuggerStepThrough]
-        public static FormattedClassification Record(string text)
+        public static FormattedClassification RecordClass(string text)
             => New(text, ClassificationTypeNames.RecordClassName);
 
         [DebuggerStepThrough]
@@ -91,6 +91,10 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Classification
             => New(text, ClassificationTypeNames.EventName);
 
         [DebuggerStepThrough]
+        public static FormattedClassification Obsolete(string text)
+            => New(text, ClassificationTypeNames.ObsoleteSymbol);
+
+        [DebuggerStepThrough]
         public static FormattedClassification Static(string text)
             => New(text, ClassificationTypeNames.StaticSymbol);
 
@@ -109,6 +113,10 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Classification
         [DebuggerStepThrough]
         public static FormattedClassification Keyword(string text)
             => New(text, ClassificationTypeNames.Keyword);
+
+        [DebuggerStepThrough]
+        public static FormattedClassification PunctuationText(string text)
+            => New(text, ClassificationTypeNames.Punctuation);
 
         [DebuggerStepThrough]
         public static FormattedClassification ControlKeyword(string text)
@@ -200,5 +208,13 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Classification
         [DebuggerStepThrough]
         public static FormattedClassification VBXmlEntityReference(string text)
             => New(text, ClassificationTypeNames.XmlLiteralEntityReference);
+
+        [DebuggerStepThrough]
+        public static FormattedClassification TestCode(string text)
+            => New(text, ClassificationTypeNames.TestCode);
+
+        [DebuggerStepThrough]
+        public static FormattedClassification TestCodeMarkdown(string text)
+            => New(text, ClassificationTypeNames.TestCodeMarkdown);
     }
 }

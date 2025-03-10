@@ -10,7 +10,7 @@ Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.ConvertToInterpolatedString
     <ExportCodeRefactoringProvider(LanguageNames.VisualBasic, Name:=PredefinedCodeRefactoringProviderNames.ConvertConcatenationToInterpolatedString), [Shared]>
-    Friend Class VisualBasicConvertConcatenationToInterpolatedStringRefactoringProvider
+    Friend NotInheritable Class VisualBasicConvertConcatenationToInterpolatedStringRefactoringProvider
         Inherits AbstractConvertConcatenationToInterpolatedStringRefactoringProvider(Of ExpressionSyntax)
 
         <ImportingConstructor>
@@ -18,7 +18,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ConvertToInterpolatedString
         Public Sub New()
         End Sub
 
-        Protected Overrides Function SupportsConstantInterpolatedStrings(document As Document) As Boolean
+        Protected Overrides Function SupportsInterpolatedStringHandler(compilation As Compilation) As Boolean
+            ' VB does not support interpolated string handlers at all.
             Return False
         End Function
 

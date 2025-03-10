@@ -35,7 +35,7 @@ Namespace Microsoft.CodeAnalysis.CodeCleanup.Providers
             End Get
         End Property
 
-        Protected Overrides Function GetRewriterAsync(document As Document, root As SyntaxNode, spans As ImmutableArray(Of TextSpan), workspace As Workspace, cancellationToken As CancellationToken) As Task(Of Rewriter)
+        Protected Overrides Function GetRewriterAsync(document As Document, root As SyntaxNode, spans As ImmutableArray(Of TextSpan), cancellationToken As CancellationToken) As Task(Of Rewriter)
             Return FixIncorrectTokensRewriter.CreateAsync(document, spans, cancellationToken)
         End Function
 
@@ -114,7 +114,7 @@ Namespace Microsoft.CodeAnalysis.CodeCleanup.Providers
                     Dim parent = TryCast(node.Parent, QualifiedNameSyntax)
                     If parent IsNot Nothing AndAlso _semanticModel IsNot Nothing Then
                         Dim symbol = _semanticModel.GetSymbolInfo(parent.Left, _cancellationToken).Symbol
-                        If symbol IsNot Nothing AndAlso symbol.IsNamespace AndAlso String.Equals(DirectCast(symbol, INamespaceSymbol).MetadataName, "System", StringComparison.Ordinal) Then
+                        If symbol IsNot Nothing AndAlso TypeOf symbol Is INamespaceSymbol AndAlso String.Equals(DirectCast(symbol, INamespaceSymbol).MetadataName, "System", StringComparison.Ordinal) Then
                             Dim id = newIdentifierName.Identifier
                             Dim newValueText As String
                             Select Case id.ValueText.ToUpperInvariant()

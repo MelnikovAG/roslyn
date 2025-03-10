@@ -3,28 +3,22 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Globalization;
-using System.IO;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.ErrorReporting;
-using Microsoft.CodeAnalysis.Extensions;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Internal.Log;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Shared.TestHooks;
 using Microsoft.CodeAnalysis.Telemetry;
 using Microsoft.ServiceHub.Client;
 using Microsoft.ServiceHub.Framework;
-using Microsoft.VisualStudio.Threading;
-using Roslyn.Utilities;
-using StreamJsonRpc;
 
 namespace Microsoft.CodeAnalysis.Remote
 {
     internal sealed partial class ServiceHubRemoteHostClient : RemoteHostClient
     {
-        private readonly HostWorkspaceServices _services;
+        private readonly SolutionServices _services;
         private readonly SolutionAssetStorage _assetStorage;
         private readonly HubClient _hubClient;
         private readonly ServiceBrokerClient _serviceBrokerClient;
@@ -32,12 +26,13 @@ namespace Microsoft.CodeAnalysis.Remote
         private readonly IRemoteHostClientShutdownCancellationService? _shutdownCancellationService;
         private readonly IRemoteServiceCallbackDispatcherProvider _callbackDispatcherProvider;
 
-        private readonly bool _isRemoteHostServerGC;
-        private readonly bool _isRemoteHostCoreClr;
+        public readonly RemoteProcessConfiguration Configuration;
+
+        private Process? _remoteProcess;
 
         private ServiceHubRemoteHostClient(
-            HostWorkspaceServices services,
-            IGlobalOptionService globalOptions,
+            SolutionServices services,
+            RemoteProcessConfiguration configuration,
             ServiceBrokerClient serviceBrokerClient,
             HubClient hubClient,
             IRemoteServiceCallbackDispatcherProvider callbackDispatcherProvider)
@@ -53,13 +48,12 @@ namespace Microsoft.CodeAnalysis.Remote
             _assetStorage = services.GetRequiredService<ISolutionAssetStorageProvider>().AssetStorage;
             _errorReportingService = services.GetService<IErrorReportingService>();
             _shutdownCancellationService = services.GetService<IRemoteHostClientShutdownCancellationService>();
-            _isRemoteHostServerGC = RemoteHostOptions.IsServiceHubProcessServerGC(globalOptions);
-            _isRemoteHostCoreClr = RemoteHostOptions.IsServiceHubProcessCoreClr(globalOptions);
+            Configuration = configuration;
         }
 
         public static async Task<RemoteHostClient> CreateAsync(
-            HostWorkspaceServices services,
-            IGlobalOptionService globalOptions,
+            SolutionServices services,
+            RemoteProcessConfiguration configuration,
             AsynchronousOperationListenerProvider listenerProvider,
             IServiceBroker serviceBroker,
             RemoteServiceCallbackDispatcherRegistry callbackDispatchers,
@@ -74,13 +68,34 @@ namespace Microsoft.CodeAnalysis.Remote
 
                 var hubClient = new HubClient("ManagedLanguage.IDE.RemoteHostClient");
 
-                var client = new ServiceHubRemoteHostClient(services, globalOptions, serviceBrokerClient, hubClient, callbackDispatchers);
+                var client = new ServiceHubRemoteHostClient(services, configuration, serviceBrokerClient, hubClient, callbackDispatchers);
+
+                var workspaceConfigurationService = services.GetRequiredService<IWorkspaceConfigurationService>();
+
+                var remoteProcessId = await client.TryInvokeAsync<IRemoteProcessTelemetryService, int>(
+                    (service, cancellationToken) => service.InitializeAsync(workspaceConfigurationService.Options, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (remoteProcessId.HasValue)
+                {
+                    try
+                    {
+                        client._remoteProcess = Process.GetProcessById(remoteProcessId.Value);
+                    }
+                    catch (Exception e)
+                    {
+                        hubClient.Logger.TraceEvent(TraceEventType.Error, 1, $"Unable to find Roslyn ServiceHub process: {e.Message}");
+                    }
+                }
+                else
+                {
+                    hubClient.Logger.TraceEvent(TraceEventType.Error, 1, "Roslyn ServiceHub process initialization failed.");
+                }
 
                 await client.TryInvokeAsync<IRemoteAsynchronousOperationListenerService>(
                     (service, cancellationToken) => service.EnableAsync(AsynchronousOperationListenerProvider.IsEnabled, listenerProvider.DiagnosticTokensEnabled, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
 
-                client.Started();
                 return client;
             }
         }
@@ -96,7 +111,7 @@ namespace Microsoft.CodeAnalysis.Remote
         /// </summary>
         internal RemoteServiceConnection<T> CreateConnection<T>(ServiceDescriptors descriptors, IRemoteServiceCallbackDispatcherProvider callbackDispatcherProvider, object? callbackTarget) where T : class
         {
-            var descriptor = descriptors.GetServiceDescriptor(typeof(T), _isRemoteHostServerGC, _isRemoteHostCoreClr);
+            var descriptor = descriptors.GetServiceDescriptor(typeof(T), Configuration);
             var callbackDispatcher = (descriptor.ClientInterface != null) ? callbackDispatcherProvider.GetDispatcher(typeof(T)) : null;
 
             return new BrokeredServiceConnection<T>(
@@ -106,7 +121,8 @@ namespace Microsoft.CodeAnalysis.Remote
                 _serviceBrokerClient,
                 _assetStorage,
                 _errorReportingService,
-                _shutdownCancellationService);
+                _shutdownCancellationService,
+                _remoteProcess);
         }
 
         public override void Dispose()
@@ -115,8 +131,6 @@ namespace Microsoft.CodeAnalysis.Remote
             _hubClient.Dispose();
 
             _serviceBrokerClient.Dispose();
-
-            base.Dispose();
         }
     }
 }

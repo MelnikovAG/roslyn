@@ -18,7 +18,8 @@ namespace Microsoft.CodeAnalysis
                                       ImmutableArray<AdditionalText> additionalTexts,
                                       ImmutableArray<GeneratorState> generatorStates,
                                       DriverStateTable stateTable,
-                                      IncrementalGeneratorOutputKind disabledOutputs,
+                                      SyntaxStore syntaxStore,
+                                      GeneratorDriverOptions driverOptions,
                                       TimeSpan runtime)
         {
             Generators = sourceGenerators;
@@ -28,7 +29,10 @@ namespace Microsoft.CodeAnalysis
             ParseOptions = parseOptions;
             OptionsProvider = optionsProvider;
             StateTable = stateTable;
-            DisabledOutputs = disabledOutputs;
+            SyntaxStore = syntaxStore;
+            _driverOptions = driverOptions;
+            DisabledOutputs = driverOptions.DisabledOutputs;
+            TrackIncrementalSteps = driverOptions.TrackIncrementalGeneratorSteps;
             RunTime = runtime;
             Debug.Assert(Generators.Length == GeneratorStates.Length);
             Debug.Assert(IncrementalGenerators.Length == GeneratorStates.Length);
@@ -72,18 +76,31 @@ namespace Microsoft.CodeAnalysis
         internal readonly AnalyzerConfigOptionsProvider OptionsProvider;
 
         /// <summary>
+        /// The base directory for the <see cref="SyntaxTree.FilePath"/> of generated files.
+        /// </summary>
+        internal string? BaseDirectory => _driverOptions.BaseDirectory;
+
+        /// <summary>
         /// ParseOptions to use when parsing generator provided source.
         /// </summary>
         internal readonly ParseOptions ParseOptions;
 
         internal readonly DriverStateTable StateTable;
 
+        internal readonly SyntaxStore SyntaxStore;
+
+        private readonly GeneratorDriverOptions _driverOptions;
+
         /// <summary>
         /// A bit field containing the output kinds that should not be produced by this generator driver.
         /// </summary>
+        // https://github.com/dotnet/roslyn/issues/72129: Change from field to property once issue is addressed
         internal readonly IncrementalGeneratorOutputKind DisabledOutputs;
 
         internal readonly TimeSpan RunTime;
+
+        // https://github.com/dotnet/roslyn/issues/72129: Change from field to property once issue is addressed
+        internal readonly bool TrackIncrementalSteps;
 
         internal GeneratorDriverState With(
             ImmutableArray<ISourceGenerator>? sourceGenerators = null,
@@ -91,9 +108,9 @@ namespace Microsoft.CodeAnalysis
             ImmutableArray<GeneratorState>? generatorStates = null,
             ImmutableArray<AdditionalText>? additionalTexts = null,
             DriverStateTable? stateTable = null,
+            SyntaxStore? syntaxStore = null,
             ParseOptions? parseOptions = null,
             AnalyzerConfigOptionsProvider? optionsProvider = null,
-            IncrementalGeneratorOutputKind? disabledOutputs = null,
             TimeSpan? runTime = null)
         {
             return new GeneratorDriverState(
@@ -104,7 +121,8 @@ namespace Microsoft.CodeAnalysis
                 additionalTexts ?? this.AdditionalTexts,
                 generatorStates ?? this.GeneratorStates,
                 stateTable ?? this.StateTable,
-                disabledOutputs ?? this.DisabledOutputs,
+                syntaxStore ?? this.SyntaxStore,
+                this._driverOptions,
                 runTime ?? this.RunTime
                 );
         }

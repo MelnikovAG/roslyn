@@ -4,8 +4,10 @@
 
 #nullable disable
 
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Roslyn.Test.Utilities;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using Xunit;
@@ -17,7 +19,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
     public class OverloadResolutionPerfTests : CSharpTestBase
     {
         [WorkItem(13685, "https://github.com/dotnet/roslyn/issues/13685")]
-        [ConditionalFactAttribute(typeof(IsRelease), typeof(NoIOperationValidation))]
+        [ConditionalFact(typeof(IsRelease), typeof(NoIOperationValidation))]
         public void Overloads()
         {
             const int n = 3000;
@@ -43,7 +45,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         }
 
         [WorkItem(13685, "https://github.com/dotnet/roslyn/issues/13685")]
-        [ConditionalFactAttribute(typeof(IsRelease), typeof(NoIOperationValidation))]
+        [ConditionalFact(typeof(IsRelease), typeof(NoIOperationValidation))]
         public void BinaryOperatorOverloads()
         {
             const int n = 3000;
@@ -157,7 +159,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             comp.VerifyDiagnostics();
         }
 
-        [ConditionalFactAttribute(typeof(IsRelease), typeof(NoIOperationValidation))]
+        [ConditionalFact(typeof(IsRelease), typeof(NoIOperationValidation))]
         public void ExtensionMethodsWithLambdaAndErrors()
         {
             const int n = 200;
@@ -286,7 +288,7 @@ static class Ext
             comp.VerifyDiagnostics();
         }
 
-        [ConditionalFactAttribute(typeof(IsRelease))]
+        [ConditionalFact(typeof(IsRelease))]
         [WorkItem(40495, "https://github.com/dotnet/roslyn/issues/40495")]
         public void NestedLambdas_01()
         {
@@ -307,12 +309,45 @@ class Program
     }
 }";
             var comp = CreateCompilation(source);
+            var diagnostics = comp.GetDiagnostics().Where(d => d is not { Severity: DiagnosticSeverity.Info, Code: (int)ErrorCode.INF_TooManyBoundLambdas });
+            diagnostics.Verify();
+        }
+
+        /// <summary>
+        /// A variation of <see cref="NestedLambdas_01"/> but with
+        /// explicit parameter types and return type for the lambdas.
+        /// </summary>
+        [ConditionalFact(typeof(IsRelease))]
+        public void NestedLambdas_WithParameterAndReturnTypes()
+        {
+            var source =
+@"#nullable enable
+using System.Linq;
+class Program
+{
+    static void Main()
+    {
+        Enumerable.Range(0, 1).Sum(int (int a) =>
+            Enumerable.Range(0, 1).Sum(int (int b) =>
+            Enumerable.Range(0, 1).Sum(int (int c) =>
+            Enumerable.Range(0, 1).Sum(int (int d) =>
+            Enumerable.Range(0, 1).Sum(int (int e) =>
+            Enumerable.Range(0, 1).Sum(int (int f) =>
+            Enumerable.Range(0, 1).Sum(int (int g) =>
+            Enumerable.Range(0, 1).Sum(int (int h) =>
+            Enumerable.Range(0, 1).Sum(int (int i) =>
+            Enumerable.Range(0, 1).Sum(int (int j) =>
+            Enumerable.Range(0, 1).Sum(int (int k) =>
+            Enumerable.Range(0, 1).Count(l => true))))))))))));
+    }
+}";
+            var comp = CreateCompilation(source);
             comp.VerifyDiagnostics();
         }
 
         // Test should complete in several seconds if UnboundLambda.ReallyBind
         // uses results from _returnInferenceCache.
-        [ConditionalFactAttribute(typeof(IsRelease))]
+        [ConditionalFact(typeof(IsRelease))]
         [WorkItem(1083969, "https://devdiv.visualstudio.com/DevDiv/_workitems/edit/1083969")]
         public void NestedLambdas_02()
         {
@@ -347,6 +382,73 @@ class Program
 }";
             var comp = CreateCompilation(source);
             comp.VerifyDiagnostics();
+        }
+
+        [Fact]
+        public void NestedLambdas_MethodBody()
+        {
+            var source = """
+                #pragma warning disable 649
+                using System.Collections.Generic;
+                using System.Linq;
+                class Container
+                {
+                    public IEnumerable<Container> Items;
+                    public int Value;
+                }
+                class Program
+                {
+                    static void Main()
+                    {
+                        var list = new List<Container>();
+                        _ = list.Sum(
+                            a => a.Items.Sum(
+                                b => b.Items.Sum(
+                                    c => c.Value)));
+                    }
+                }
+                """;
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (16,19): info CS9236: Compiling requires binding the lambda expression at least 100 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //                 b => b.Items.Sum(
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("100").WithLocation(16, 19),
+                // (17,23): info CS9236: Compiling requires binding the lambda expression at least 1300 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //                     c => c.Value)));
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("1300").WithLocation(17, 23));
+        }
+
+        [Fact]
+        public void NestedLambdas_FieldInitializer()
+        {
+            var source = """
+                #pragma warning disable 649
+                using System.Collections.Generic;
+                using System.Linq;
+                class Container
+                {
+                    public IEnumerable<Container> Items;
+                    public int Value;
+                }
+                class Program(List<Container> list)
+                {
+                    int _f = list.Sum(
+                        a => a.Items.Sum(
+                            b => b.Items.Sum(
+                                c => c.Value)));
+                    static void Main()
+                    {
+                    }
+                }
+                """;
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (13,15): info CS9236: Compiling requires binding the lambda expression at least 100 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //             b => b.Items.Sum(
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("100").WithLocation(13, 15),
+                // (14,19): info CS9236: Compiling requires binding the lambda expression at least 1300 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //                 c => c.Value)));
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("1300").WithLocation(14, 19));
         }
 
         [ConditionalFact(typeof(NoIOperationValidation), Reason = "Timeouts")]
@@ -394,10 +496,11 @@ class Program
 
             var source = builder.ToString();
             var comp = CreateCompilation(source);
-            comp.NullableAnalysisData = new();
+            var nullableAnalysisData = new NullableWalker.NullableAnalysisData();
+            comp.TestOnlyCompilationData = nullableAnalysisData;
             comp.VerifyDiagnostics();
 
-            int analyzed = comp.NullableAnalysisData.Data.Where(pair => pair.Value.RequiredAnalysis).Count();
+            int analyzed = nullableAnalysisData.Data.Where(pair => pair.Value.RequiredAnalysis).Count();
             Assert.Equal(nMethods / 2, analyzed);
         }
 
@@ -423,11 +526,12 @@ class Program
 
             var source = builder.ToString();
             var comp = CreateCompilation(source);
-            comp.NullableAnalysisData = new();
+            var nullableAnalysisData = new NullableWalker.NullableAnalysisData();
+            comp.TestOnlyCompilationData = nullableAnalysisData;
             comp.VerifyDiagnostics();
 
             var method = comp.GetMember("Program.F2");
-            Assert.Equal(1, comp.NullableAnalysisData.Data[method].TrackedEntries);
+            Assert.Equal(1, nullableAnalysisData.Data[method].TrackedEntries);
         }
 
         [Fact]
@@ -452,11 +556,12 @@ class Program
 
             var source = builder.ToString();
             var comp = CreateCompilation(source);
-            comp.NullableAnalysisData = new();
+            var nullableAnalysisData = new NullableWalker.NullableAnalysisData();
+            comp.TestOnlyCompilationData = nullableAnalysisData;
             comp.VerifyDiagnostics();
 
             var method = comp.GetMember("Program.F");
-            Assert.Equal(1, comp.NullableAnalysisData.Data[method].TrackedEntries);
+            Assert.Equal(1, nullableAnalysisData.Data[method].TrackedEntries);
         }
 
         [ConditionalFact(typeof(NoIOperationValidation))]
@@ -555,7 +660,7 @@ class Program
         [ConditionalFact(typeof(IsRelease))]
         public void NullableAnalysisNestedExpressionsInMethod()
         {
-            const int nestingLevel = 40;
+            const int nestingLevel = 400;
 
             var builder = new StringBuilder();
             builder.AppendLine("#nullable enable");
@@ -575,18 +680,15 @@ class Program
 
             var source = builder.ToString();
             var comp = CreateCompilation(source);
-            comp.NullableAnalysisData = new(maxRecursionDepth: nestingLevel / 2);
-            comp.VerifyDiagnostics(
-                // (7,15): error CS8078: An expression is too long or complex to compile
-                //         C c = new C()
-                Diagnostic(ErrorCode.ERR_InsufficientStack, "new").WithLocation(7, 15));
+            comp.TestOnlyCompilationData = new NullableWalker.NullableAnalysisData(maxRecursionDepth: nestingLevel / 2);
+            comp.VerifyDiagnostics();
         }
 
         [WorkItem(51739, "https://github.com/dotnet/roslyn/issues/51739")]
         [ConditionalFact(typeof(IsRelease))]
         public void NullableAnalysisNestedExpressionsInLocalFunction()
         {
-            const int nestingLevel = 40;
+            const int nestingLevel = 400;
 
             var builder = new StringBuilder();
             builder.AppendLine("#nullable enable");
@@ -611,11 +713,8 @@ class Program
 
             var source = builder.ToString();
             var comp = CreateCompilation(source);
-            comp.NullableAnalysisData = new(maxRecursionDepth: nestingLevel / 2);
-            comp.VerifyDiagnostics(
-                // (10,15): error CS8078: An expression is too long or complex to compile
-                //         C c = new C()
-                Diagnostic(ErrorCode.ERR_InsufficientStack, "new").WithLocation(10, 15));
+            comp.TestOnlyCompilationData = new NullableWalker.NullableAnalysisData(maxRecursionDepth: nestingLevel / 2);
+            comp.VerifyDiagnostics();
         }
 
         [ConditionalFact(typeof(NoIOperationValidation), typeof(IsRelease))]
@@ -648,7 +747,7 @@ class C
             sourceBuilder.Append("    ");
             for (var i = 0; i < 15; i++)
             {
-                sourceBuilder.Append(")");
+                sourceBuilder.Append(')');
             }
 
             sourceBuilder.Append(source2);
@@ -749,6 +848,246 @@ class C
                 // (9,13): warning CS0168: The variable 'tmp2' is declared but never used
                 //         int tmp2; // unused
                 Diagnostic(ErrorCode.WRN_UnreferencedVar, "tmp2").WithArguments("tmp2").WithLocation(9, 13));
+        }
+
+        [ConditionalFact(typeof(IsRelease))]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/67926")]
+        public void ExtensionOverloadsDistinctClasses_01()
+        {
+            const int n = 1000;
+
+            var builder = new StringBuilder();
+            builder.AppendLine(
+                $$"""
+                class Program
+                {
+                    static void Main()
+                    {
+                        var o = new object();
+                        var c = new C1();
+                        o.F(c, c => o.F(c, null));
+                    }
+                }
+                """);
+
+            for (int i = 0; i < n; i++)
+            {
+                builder.AppendLine(
+                    $$"""
+                    class C{{i}} { }
+                    static class E{{i}}
+                    {
+                        public static void F(this object o, C{{i}} c, System.Action<C{{i}}> a) { }
+                    }
+                    """);
+            }
+
+            string source = builder.ToString();
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics();
+        }
+
+        [ConditionalFact(typeof(IsRelease))]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/67926")]
+        public void ExtensionOverloadsDistinctClasses_02()
+        {
+            const int n = 1000;
+
+            var builder = new StringBuilder();
+            builder.AppendLine(
+                $$"""
+                class Program
+                {
+                    static void Main()
+                    {
+                        var o = new object();
+                        o.F(null, c => o.F(c, null));
+                    }
+                }
+                """);
+
+            for (int i = 0; i < n; i++)
+            {
+                builder.AppendLine(
+                    $$"""
+                    class C{{i}} { }
+                    static class E{{i}}
+                    {
+                        public static void F(this object o, C{{i}} c, System.Action<C{{i}}> a) { }
+                    }
+                    """);
+            }
+
+            string source = builder.ToString();
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (6,11): error CS0121: The call is ambiguous between the following methods or properties: 'E0.F(object, C0, Action<C0>)' and 'E1.F(object, C1, Action<C1>)'
+                //         o.F(null, c => o.F(c, null));
+                Diagnostic(ErrorCode.ERR_AmbigCall, "F").WithArguments("E0.F(object, C0, System.Action<C0>)", "E1.F(object, C1, System.Action<C1>)").WithLocation(6, 11),
+                // (6,21): info CS9236: Compiling requires binding the lambda expression at least 1000 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //         o.F(null, c => o.F(c, null));
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("1000").WithLocation(6, 21));
+        }
+
+        [ConditionalFact(typeof(IsRelease))]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/67926")]
+        public void ExtensionOverloadsDistinctClasses_03()
+        {
+            const int n = 1000;
+
+            var builder = new StringBuilder();
+            builder.AppendLine(
+                $$"""
+                class Program
+                {
+                    static void Main()
+                    {
+                        var o = new object();
+                        var c = new C1();
+                        o.F(c, c => { o.F( });
+                    }
+                }
+                """);
+
+            for (int i = 0; i < n; i++)
+            {
+                builder.AppendLine(
+                    $$"""
+                    class C{{i}} { }
+                    static class E{{i}}
+                    {
+                        public static void F(this object o, C{{i}} c, System.Action<C{{i}}> a) { }
+                    }
+                    """);
+            }
+
+            string source = builder.ToString();
+            var comp = CreateCompilation(source);
+            comp.VerifyDiagnostics(
+                // (7,18): info CS9236: Compiling requires binding the lambda expression at least 1000 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.
+                //         o.F(c, c => { o.F( });
+                Diagnostic(ErrorCode.INF_TooManyBoundLambdas, "=>").WithArguments("1000").WithLocation(7, 18),
+                // (7,25): error CS1501: No overload for method 'F' takes 0 arguments
+                //         o.F(c, c => { o.F( });
+                Diagnostic(ErrorCode.ERR_BadArgCount, "F").WithArguments("F", "0").WithLocation(7, 25),
+                // (7,28): error CS1026: ) expected
+                //         o.F(c, c => { o.F( });
+                Diagnostic(ErrorCode.ERR_CloseParenExpected, "}").WithLocation(7, 28),
+                // (7,28): error CS1002: ; expected
+                //         o.F(c, c => { o.F( });
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "}").WithLocation(7, 28));
+
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var expr = tree.GetCompilationUnitRoot().DescendantNodes().OfType<Syntax.InvocationExpressionSyntax>().Last();
+            Assert.Equal("o.F( ", expr.ToString());
+            _ = model.GetTypeInfo(expr);
+        }
+
+        [Fact]
+        public void ExtensionOverloadsDistinctClasses_04()
+        {
+            // public abstract class A
+            // {
+            //     public static void F1(this object obj) { }
+            //     public static void F3(this object obj) { }
+            // }
+            // public abstract class B : A
+            // {
+            //     public static void F2(this object obj) { }
+            //     public static void F3(this object obj) { }
+            // }
+            string sourceA = """
+                .assembly extern mscorlib { .ver 4:0:0:0 .publickeytoken = (B7 7A 5C 56 19 34 E0 89) }
+                .assembly extern System.Core { }
+                .assembly '<<GeneratedFileName>>'
+                {
+                    .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                }
+                .class public abstract A
+                {
+                  .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                  .method public hidebysig specialname rtspecialname instance void .ctor() { ret }
+                  .method public static void F1(object o)
+                  {
+                    .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                    ret
+                  }
+                  .method public static void F3(object o)
+                  {
+                    .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                    ret
+                  }
+                }
+                .class public abstract B extends A
+                {
+                  .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                  .method public hidebysig specialname rtspecialname instance void .ctor() { ret }
+                  .method public static void F2(object o)
+                  {
+                    .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                    ret
+                  }
+                  .method public static void F3(object o)
+                  {
+                    .custom instance void [System.Core]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = ( 01 00 00 00 )
+                    ret
+                  }
+                }
+                """;
+            var refA = CompileIL(sourceA, prependDefaultHeader: false);
+
+            // The calls to B.F3(o) and o.F3() should bind to B.F3 and should not be
+            // considered ambiguous with A.F3 because B is derived from A.
+            string sourceB = """
+                class Program
+                {
+                    static void M(object o)
+                    {
+                        B.F1(o);
+                        B.F2(o);
+                        B.F3(o);
+                        o.F1();
+                        o.F2();
+                        o.F3();
+                    }
+                }
+                """;
+            var comp = CreateCompilation(sourceB, references: new[] { refA });
+            comp.VerifyDiagnostics();
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var exprs = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>().ToImmutableArray();
+            var containingTypes = exprs.SelectAsArray(e => model.GetSymbolInfo(e).Symbol.ContainingSymbol).ToTestDisplayStrings();
+            Assert.Equal(new[] { "A", "B", "B", "A", "B", "B" }, containingTypes);
+        }
+
+        [ConditionalFact(typeof(IsRelease))]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/76568")]
+        public void NullableAnalysis_ObjectCreationExpression()
+        {
+            const int n = 200000;
+            var builder = new StringBuilder();
+            builder.AppendLine("""
+                #nullable enable
+                class A { }
+                class B
+                {
+                    static void Main()
+                    {
+                        A a;
+                """);
+            for (int i = 0; i < n; i++)
+            {
+                builder.AppendLine("        a = new A();");
+            }
+            builder.AppendLine("""
+                    }
+                }
+                """);
+            var source = builder.ToString();
+            var comp = CreateCompilation(source);
+            comp.VerifyEmitDiagnostics();
         }
     }
 }

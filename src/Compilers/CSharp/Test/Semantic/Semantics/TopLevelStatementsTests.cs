@@ -8,6 +8,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -16,6 +17,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FlowAnalysis;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Test.Utilities;
+using Microsoft.CodeAnalysis.Text;
 using Roslyn.Test.Utilities;
 using Xunit;
 
@@ -645,7 +647,7 @@ class Test
                 Diagnostic(ErrorCode.ERR_InvalidMemberDecl, @"""Hi!""").WithArguments(@"""Hi!""").WithLocation(4, 30)
                 };
 
-            comp.GetDiagnostics(CompilationStage.Parse, includeEarlierStages: false, cancellationToken: default).Verify(expected);
+            comp.GetDiagnostics(CompilationStage.Parse, includeEarlierStages: false, symbolFilter: null, cancellationToken: default).Verify(expected);
             comp.VerifyDiagnostics(expected);
         }
 
@@ -673,7 +675,7 @@ namespace Test
                 Diagnostic(ErrorCode.ERR_EOFExpected, @"""Hi!""").WithLocation(4, 30)
                 };
 
-            comp.GetDiagnostics(CompilationStage.Parse, includeEarlierStages: false, cancellationToken: default).Verify(expected);
+            comp.GetDiagnostics(CompilationStage.Parse, includeEarlierStages: false, symbolFilter: null, cancellationToken: default).Verify(expected);
             comp.VerifyDiagnostics(expected);
         }
 
@@ -1112,12 +1114,24 @@ await System.Threading.Tasks.Task.Yield();
 ";
 
             var comp = CreateCompilation(text, options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
-
             comp.VerifyDiagnostics(
-                // (3,9): error CS8177: Async methods cannot have by-reference locals
+                // (3,9): error CS8773: Feature 'ref and unsafe in async and iterator methods' is not available in C# 9.0. Please use language version 13.0 or greater.
                 // ref int d = ref c;
-                Diagnostic(ErrorCode.ERR_BadAsyncLocalType, "d").WithLocation(3, 9)
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion9, "d").WithArguments("ref and unsafe in async and iterator methods", "13.0").WithLocation(3, 9)
                 );
+
+            comp = CreateCompilation(text, options: TestOptions.DebugExe, parseOptions: TestOptions.Regular12);
+            comp.VerifyDiagnostics(
+                // (3,9): error CS9202: Feature 'ref and unsafe in async and iterator methods' is not available in C# 12.0. Please use language version 13.0 or greater.
+                // ref int d = ref c;
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion12, "d").WithArguments("ref and unsafe in async and iterator methods", "13.0").WithLocation(3, 9)
+                );
+
+            comp = CreateCompilation(text, options: TestOptions.DebugExe, parseOptions: TestOptions.Regular13);
+            comp.VerifyEmitDiagnostics();
+
+            comp = CreateCompilation(text, options: TestOptions.DebugExe);
+            comp.VerifyEmitDiagnostics();
         }
 
         [Fact]
@@ -3859,7 +3873,7 @@ using alias1 = args;
 
 System.Console.WriteLine(args);
 
-class args {}
+class @args {}
 
 class Derived : args
 {
@@ -4008,7 +4022,7 @@ System.Console.WriteLine(args);
             var text2 = @"
 using alias1 = args;
 
-class args {}
+class @args {}
 
 class Derived : args
 {
@@ -4300,12 +4314,24 @@ interface I1
                 // (2,1): error CS0103: The name 'local' does not exist in the current context
                 // local();
                 Diagnostic(ErrorCode.ERR_NameNotInContext, "local").WithArguments("local").WithLocation(2, 1),
-                // (4,6): error CS0540: '<invalid-global-code>.I1.local()': containing type does not implement interface 'I1'
+                // (4,1): error CS1547: Keyword 'void' cannot be used in this context
                 // void I1.local()
-                Diagnostic(ErrorCode.ERR_ClassDoesntImplementInterface, "I1").WithArguments("<invalid-global-code>.I1.local()", "I1").WithLocation(4, 6),
-                // (4,9): error CS0116: A namespace cannot directly contain members such as fields or methods
+                Diagnostic(ErrorCode.ERR_NoVoidHere, "void").WithLocation(4, 1),
+                // (4,6): warning CS0168: The variable 'I1' is declared but never used
                 // void I1.local()
-                Diagnostic(ErrorCode.ERR_NamespaceUnexpected, "local").WithLocation(4, 9)
+                Diagnostic(ErrorCode.WRN_UnreferencedVar, "I1").WithArguments("I1").WithLocation(4, 6),
+                // (4,8): error CS1003: Syntax error, ',' expected
+                // void I1.local()
+                Diagnostic(ErrorCode.ERR_SyntaxError, ".").WithArguments(",").WithLocation(4, 8),
+                // (4,9): error CS1002: ; expected
+                // void I1.local()
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "local").WithLocation(4, 9),
+                // (4,9): error CS0103: The name 'local' does not exist in the current context
+                // void I1.local()
+                Diagnostic(ErrorCode.ERR_NameNotInContext, "local").WithArguments("local").WithLocation(4, 9),
+                // (4,16): error CS1002: ; expected
+                // void I1.local()
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "").WithLocation(4, 16)
                 );
         }
 
@@ -4397,9 +4423,9 @@ localI();
                 // (14,14): error CS0759: No defining declaration found for implementing declaration of partial method '<invalid-global-code>.localG()'
                 // partial void localG() => System.Console.WriteLine();
                 Diagnostic(ErrorCode.ERR_PartialMethodMustHaveLatent, "localG").WithArguments("<invalid-global-code>.localG()").WithLocation(14, 14),
-                // (14,14): error CS0751: A partial method must be declared within a partial type
+                // (14,14): error CS0751: A partial member must be declared within a partial type
                 // partial void localG() => System.Console.WriteLine();
-                Diagnostic(ErrorCode.ERR_PartialMethodOnlyInPartialClass, "localG").WithLocation(14, 14),
+                Diagnostic(ErrorCode.ERR_PartialMemberOnlyInPartialClass, "localG").WithLocation(14, 14),
                 // (15,1): error CS0103: The name 'localG' does not exist in the current context
                 // localG();
                 Diagnostic(ErrorCode.ERR_NameNotInContext, "localG").WithArguments("localG").WithLocation(15, 1),
@@ -6374,8 +6400,6 @@ class B : A
             Assert.Equal(0, analyzer.FireCount2);
             Assert.Equal(1, analyzer.FireCount3);
             Assert.Equal(0, analyzer.FireCount4);
-            Assert.Equal(1, analyzer.FireCount5);
-            Assert.Equal(0, analyzer.FireCount6);
 
             var text2 = @"System.Console.WriteLine(2);";
 
@@ -6387,8 +6411,6 @@ class B : A
             Assert.Equal(1, analyzer.FireCount2);
             Assert.Equal(1, analyzer.FireCount3);
             Assert.Equal(1, analyzer.FireCount4);
-            Assert.Equal(1, analyzer.FireCount5);
-            Assert.Equal(1, analyzer.FireCount6);
         }
 
         private class AnalyzerActions_01_Analyzer : DiagnosticAnalyzer
@@ -6397,8 +6419,6 @@ class B : A
             public int FireCount2;
             public int FireCount3;
             public int FireCount4;
-            public int FireCount5;
-            public int FireCount6;
 
             private static readonly DiagnosticDescriptor Descriptor =
                new DiagnosticDescriptor("XY0000", "Test", "Test", "Test", DiagnosticSeverity.Warning, true, "Test", "Test");
@@ -6437,7 +6457,7 @@ class B : A
 
                 MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[globalStatement.Parent];
 
-                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(globalStatement.Statement).IsDefaultOrEmpty);
+                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(globalStatement.Statement).IsEmpty);
 
                 Assert.Same(mm, syntaxTreeModel.GetMemberModel(globalStatement.Statement));
             }
@@ -6451,10 +6471,10 @@ class B : A
                 switch (unit.ToString())
                 {
                     case "System.Console.WriteLine(1);":
-                        Interlocked.Increment(ref context.ContainingSymbol.Kind == SymbolKind.Namespace ? ref FireCount5 : ref FireCount3);
+                        Interlocked.Increment(ref FireCount3);
                         break;
                     case "System.Console.WriteLine(2);":
-                        Interlocked.Increment(ref context.ContainingSymbol.Kind == SymbolKind.Namespace ? ref FireCount6 : ref FireCount4);
+                        Interlocked.Increment(ref FireCount4);
                         break;
                     default:
                         Assert.True(false);
@@ -6463,16 +6483,6 @@ class B : A
 
                 switch (context.ContainingSymbol.ToTestDisplayString())
                 {
-                    case "<top-level-statements-entry-point>":
-                        Assert.Same(unit.SyntaxTree, context.ContainingSymbol.DeclaringSyntaxReferences.Single().SyntaxTree);
-                        Assert.True(syntaxTreeModel.TestOnlyMemberModels.ContainsKey(unit));
-
-                        MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[unit];
-
-                        Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(unit).IsDefaultOrEmpty);
-
-                        Assert.Same(mm, syntaxTreeModel.GetMemberModel(unit));
-                        break;
                     case "<global namespace>":
                         break;
                     default:
@@ -6925,7 +6935,7 @@ class B : A
 
                 MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[unit];
 
-                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(unit).IsDefaultOrEmpty);
+                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(unit).IsEmpty);
 
                 Assert.Same(mm, syntaxTreeModel.GetMemberModel(unit));
             }
@@ -6993,7 +7003,7 @@ class B : A
 
                 MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[unit];
 
-                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(unit).IsDefaultOrEmpty);
+                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(unit).IsEmpty);
 
                 Assert.Same(mm, syntaxTreeModel.GetMemberModel(unit));
             }
@@ -7022,7 +7032,6 @@ class Test
             Assert.Equal(1, analyzer.FireCount1);
             Assert.Equal(1, analyzer.FireCount2);
             Assert.Equal(1, analyzer.FireCount3);
-            Assert.Equal(1, analyzer.FireCount4);
 
             analyzer = new AnalyzerActions_09_Analyzer();
             comp = CreateCompilation(new[] { text1, text2 }, options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
@@ -7030,8 +7039,7 @@ class Test
 
             Assert.Equal(1, analyzer.FireCount1);
             Assert.Equal(1, analyzer.FireCount2);
-            Assert.Equal(1, analyzer.FireCount3);
-            Assert.Equal(2, analyzer.FireCount4);
+            Assert.Equal(2, analyzer.FireCount3);
         }
 
         private class AnalyzerActions_09_Analyzer : DiagnosticAnalyzer
@@ -7039,7 +7047,6 @@ class Test
             public int FireCount1;
             public int FireCount2;
             public int FireCount3;
-            public int FireCount4;
 
             private static readonly DiagnosticDescriptor Descriptor =
                new DiagnosticDescriptor("XY0000", "Test", "Test", "Test", DiagnosticSeverity.Warning, true, "Test", "Test");
@@ -7082,7 +7089,7 @@ class Test
 
                 MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[decl];
 
-                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(node).IsDefaultOrEmpty);
+                Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(node).IsEmpty);
 
                 Assert.Same(mm, syntaxTreeModel.GetMemberModel(node));
             }
@@ -7095,20 +7102,8 @@ class Test
 
                 switch (context.ContainingSymbol.ToTestDisplayString())
                 {
-                    case @"<top-level-statements-entry-point>":
-                        Interlocked.Increment(ref FireCount3);
-
-                        Assert.True(syntaxTreeModel.TestOnlyMemberModels.ContainsKey(node));
-
-                        MemberSemanticModel mm = syntaxTreeModel.TestOnlyMemberModels[node];
-
-                        Assert.False(mm.TestOnlyTryGetBoundNodesFromMap(node).IsDefaultOrEmpty);
-
-                        Assert.Same(mm, syntaxTreeModel.GetMemberModel(node));
-                        break;
-
                     case "<global namespace>":
-                        Interlocked.Increment(ref FireCount4);
+                        Interlocked.Increment(ref FireCount3);
                         break;
 
                     default:
@@ -7151,7 +7146,6 @@ class MyAttribute : System.Attribute
             Assert.Equal(1, analyzer.FireCount2);
             Assert.Equal(1, analyzer.FireCount3);
             Assert.Equal(1, analyzer.FireCount4);
-            Assert.Equal(1, analyzer.FireCount5);
 
             analyzer = new AnalyzerActions_10_Analyzer();
             comp = CreateCompilation(new[] { text1, text2, text3 }, options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
@@ -7160,8 +7154,7 @@ class MyAttribute : System.Attribute
             Assert.Equal(1, analyzer.FireCount1);
             Assert.Equal(1, analyzer.FireCount2);
             Assert.Equal(1, analyzer.FireCount3);
-            Assert.Equal(1, analyzer.FireCount4);
-            Assert.Equal(3, analyzer.FireCount5);
+            Assert.Equal(3, analyzer.FireCount4);
         }
 
         private class AnalyzerActions_10_Analyzer : DiagnosticAnalyzer
@@ -7170,7 +7163,6 @@ class MyAttribute : System.Attribute
             public int FireCount2;
             public int FireCount3;
             public int FireCount4;
-            public int FireCount5;
 
             private static readonly DiagnosticDescriptor Descriptor =
                new DiagnosticDescriptor("XY0000", "Test", "Test", "Test", DiagnosticSeverity.Warning, true, "Test", "Test");
@@ -7215,12 +7207,8 @@ class MyAttribute : System.Attribute
             {
                 switch (context.ContainingSymbol.ToTestDisplayString())
                 {
-                    case @"<top-level-statements-entry-point>":
-                        Interlocked.Increment(ref FireCount4);
-                        break;
-
                     case @"<global namespace>":
-                        Interlocked.Increment(ref FireCount5);
+                        Interlocked.Increment(ref FireCount4);
                         break;
 
                     default:
@@ -7648,9 +7636,9 @@ return;
   <files>
     <file id=""1"" name="""" language=""C#"" />
   </files>
-  <entryPoint declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"" />
+  <entryPoint declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"" />
   <methods>
-    <method containingType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" name=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"">
+    <method containingType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" name=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"">
       <customDebugInfo>
         <using>
           <namespace usingCount=""0"" />
@@ -7695,9 +7683,9 @@ return 10;
   <files>
     <file id=""1"" name="""" language=""C#"" />
   </files>
-  <entryPoint declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"" />
+  <entryPoint declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"" />
   <methods>
-    <method containingType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" name=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"">
+    <method containingType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" name=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"">
       <customDebugInfo>
         <using>
           <namespace usingCount=""0"" />
@@ -7742,9 +7730,9 @@ return;
   <files>
     <file id=""1"" name="""" language=""C#"" />
   </files>
-  <entryPoint declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""&lt;Main&gt;"" parameterNames=""args"" />
+  <entryPoint declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""&lt;Main&gt;"" parameterNames=""args"" />
   <methods>
-    <method containingType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }+&lt;{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }&gt;d__0"" name=""MoveNext"">
+    <method containingType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}+&lt;{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}&gt;d__0"" name=""MoveNext"">
       <customDebugInfo>
         <using>
           <namespace usingCount=""2"" />
@@ -7773,8 +7761,8 @@ return;
       </scope>
       <asyncInfo>
         <catchHandler offset=""0xa9"" />
-        <kickoffMethod declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"" />
-        <await yield=""0x5a"" resume=""0x75"" declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }+&lt;{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }&gt;d__0"" methodName=""MoveNext"" />
+        <kickoffMethod declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"" />
+        <await yield=""0x5a"" resume=""0x75"" declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}+&lt;{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}&gt;d__0"" methodName=""MoveNext"" />
       </asyncInfo>
     </method>
   </methods>
@@ -7811,9 +7799,9 @@ return 11;
   <files>
     <file id=""1"" name="""" language=""C#"" />
   </files>
-  <entryPoint declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""&lt;Main&gt;"" parameterNames=""args"" />
+  <entryPoint declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""&lt;Main&gt;"" parameterNames=""args"" />
   <methods>
-    <method containingType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }+&lt;{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }&gt;d__0"" name=""MoveNext"">
+    <method containingType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}+&lt;{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}&gt;d__0"" name=""MoveNext"">
       <customDebugInfo>
         <using>
           <namespace usingCount=""2"" />
@@ -7843,8 +7831,8 @@ return 11;
       </scope>
       <asyncInfo>
         <catchHandler offset=""0xac"" />
-        <kickoffMethod declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }"" methodName=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }"" parameterNames=""args"" />
-        <await yield=""0x5a"" resume=""0x75"" declaringType=""{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) }+&lt;{ EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName) }&gt;d__0"" methodName=""MoveNext"" />
+        <kickoffMethod declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}"" methodName=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}"" parameterNames=""args"" />
+        <await yield=""0x5a"" resume=""0x75"" declaringType=""{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)}+&lt;{EscapeForXML(WellKnownMemberNames.TopLevelStatementsEntryPointMethodName)}&gt;d__0"" methodName=""MoveNext"" />
       </asyncInfo>
     </method>
   </methods>
@@ -8575,12 +8563,34 @@ catch
             var text = @"
 #nullable enable
 System.Console.WriteLine(args.Length == 0 ? 0 : -args[0].Length);
+System.Console.Write("""");
+
+System.Console.Write("""");
 ";
 
             var comp = CreateCompilation(text, options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
             CompileAndVerify(comp, expectedOutput: "0").VerifyDiagnostics();
             var entryPoint = SynthesizedSimpleProgramEntryPointSymbol.GetSimpleProgramEntryPoint(comp);
             AssertEntryPointParameter(entryPoint);
+
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var invocations = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+
+            var symbols = model.LookupSymbols(invocations[0].Position, name: "args");
+            Assert.Empty(symbols);
+            symbols = model.LookupSymbols(invocations[0].SpanStart, name: "args");
+            Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+
+            symbols = model.LookupSymbols(invocations[1].Position, name: "args");
+            Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+            symbols = model.LookupSymbols(invocations[1].SpanStart, name: "args");
+            Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+
+            symbols = model.LookupSymbols(invocations[2].Position, name: "args");
+            Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+            symbols = model.LookupSymbols(invocations[2].SpanStart, name: "args");
+            Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
         }
 
         [Fact]
@@ -8628,6 +8638,70 @@ lambda();
         }
 
         [Fact]
+        public void Args_05()
+        {
+            var text = @"
+ar
+";
+
+            var comp = CreateCompilation(text);
+
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var id = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>().Single();
+
+            for (int i = id.SpanStart; i <= id.Span.End; i++)
+            {
+                var symbols = model.LookupSymbols(i, name: "args");
+                Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+            }
+        }
+
+        [Fact]
+        public void Args_06()
+        {
+            var text = @"
+ar
+// See https://aka.ms/new-console-template for more information
+Console.WriteLine(""Hello, World!"");
+";
+
+            var comp = CreateCompilation(text);
+
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var id = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>().Where(id => id.Identifier.ValueText == "ar").Single();
+
+            for (int i = id.SpanStart; i <= id.Span.End; i++)
+            {
+                var symbols = model.LookupSymbols(i, name: "args");
+                Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+            }
+        }
+
+        [Fact]
+        public void Args_07()
+        {
+            var text =
+@"// See https://aka.ms/new-console-template for more information
+Console.WriteLine(""Hello, World!"");
+ar
+";
+
+            var comp = CreateCompilation(text);
+
+            var tree = comp.SyntaxTrees.Single();
+            var model = comp.GetSemanticModel(tree);
+            var id = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>().Where(id => id.Identifier.ValueText == "ar").Single();
+
+            for (int i = id.SpanStart; i <= id.Span.End; i++)
+            {
+                var symbols = model.LookupSymbols(i, name: "args");
+                Assert.Equal("System.String[] args", symbols.Single().ToTestDisplayString());
+            }
+        }
+
+        [Fact]
         public void Span_01()
         {
             var comp = CreateCompilationWithMscorlibAndSpan(@"
@@ -8659,9 +8733,9 @@ for (Span<int> inner = stackalloc int[10];; inner = outer)
 ", options: TestOptions.DebugExe, parseOptions: DefaultParseOptions);
 
             comp.VerifyDiagnostics(
-                // (7,13): error CS8352: Cannot use local 'inner' in this context because it may expose referenced variables outside of their declaration scope
+                // (7,13): error CS8352: Cannot use variable 'inner' in this context because it may expose referenced variables outside of their declaration scope
                 //     outer = inner;
-                Diagnostic(ErrorCode.ERR_EscapeLocal, "inner").WithArguments("inner").WithLocation(7, 13)
+                Diagnostic(ErrorCode.ERR_EscapeVariable, "inner").WithArguments("inner").WithLocation(7, 13)
                 );
         }
 
@@ -8711,13 +8785,13 @@ return Task.WhenAll(
     Task.WhenAll(this.c01234567890123456789.Select(v01234567 => v01234567.U0123456789012345678901234())));
 ";
 
-            var newText = Microsoft.CodeAnalysis.Text.StringText.From(text2, System.Text.Encoding.UTF8);
-            using var lexer = new Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax.Lexer(newText, TestOptions.RegularDefault);
-            using var parser = new Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax.LanguageParser(lexer,
-                                       (CSharpSyntaxNode)oldTree.GetRoot(), new[] { new Microsoft.CodeAnalysis.Text.TextChangeRange(new Microsoft.CodeAnalysis.Text.TextSpan(282, 0), 1) });
+            var newText = SourceText.From(text2, Encoding.UTF8, SourceHashAlgorithms.Default);
+            using var lexer = new Syntax.InternalSyntax.Lexer(newText, TestOptions.RegularDefault);
+            using var parser = new Syntax.InternalSyntax.LanguageParser(lexer,
+                                       (CSharpSyntaxNode)oldTree.GetRoot(), new[] { new TextChangeRange(new TextSpan(282, 0), 1) });
 
             var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-            var tree = CSharpSyntaxTree.Create(compilationUnit, TestOptions.RegularDefault, encoding: System.Text.Encoding.UTF8);
+            var tree = CSharpSyntaxTree.Create(compilationUnit, TestOptions.RegularDefault, path: "", Encoding.UTF8, SourceHashAlgorithms.Default);
             Assert.Equal(text2, tree.GetText().ToString());
             tree.VerifySource();
 
@@ -9586,6 +9660,170 @@ var x = 1;
                 // var x = 1;
                 Diagnostic(ErrorCode.WRN_UnreferencedVarAssg, "x").WithArguments("x").WithLocation(6, 5)
                 );
+        }
+
+        [Fact]
+        [WorkItem(58521, "https://github.com/dotnet/roslyn/issues/58521")]
+        public void BindCompilationUnitInSemanticModelWhenLocalFunctionIsAtTheTop()
+        {
+            var source = @"
+void F<T>(T t)
+{
+    var f = (ref T x) => 0;
+}
+";
+            var compilation = CreateCompilation(source, options: TestOptions.DebugDll);
+            var tree = compilation.SyntaxTrees[0];
+            var identifier = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>().First(id => id.Identifier.Text == "var");
+            var model = compilation.GetSemanticModel(tree);
+
+            model.GetOperation(identifier);
+            Assert.Equal(OperationKind.Literal, model.GetOperation(tree.GetRoot().DescendantNodes().OfType<LiteralExpressionSyntax>().Single()).Kind);
+        }
+
+        [Fact]
+        [WorkItem(60248, "https://github.com/dotnet/roslyn/issues/60248")]
+        public void SpeculativeSemanticModel()
+        {
+            var source = @"
+int x = 1;
+System.Console.WriteLine(0);
+
+public class C
+{
+    public void M()
+    {
+        System.Console.WriteLine(2);
+    }
+}
+";
+            var compilation = CreateCompilation(source);
+            var tree = compilation.SyntaxTrees[0];
+            var root = tree.GetRoot();
+            var model = compilation.GetSemanticModel(tree);
+            var nodeToSpeculate = SyntaxFactory.ParseStatement("int y = x;");
+
+            // Speculate inside a valid top-level position.
+            model.TryGetSpeculativeSemanticModel(root.DescendantNodes().Single(n => n is ExpressionStatementSyntax { Parent: GlobalStatementSyntax }).Span.End, nodeToSpeculate, out var speculativeModelInTopLevel);
+            var conversionInTopLevel = speculativeModelInTopLevel.GetConversion(nodeToSpeculate.DescendantTokens().Single(n => n.ValueText == "x").Parent);
+            Assert.Equal(ConversionKind.Identity, conversionInTopLevel.Kind);
+
+            // Speculate outside a top-level position.
+            model.TryGetSpeculativeSemanticModel(root.DescendantNodes().Single(n => n is ExpressionStatementSyntax { Parent: BlockSyntax }).Span.End, nodeToSpeculate, out var speculativeModelOutsideTopLevel);
+            var conversionOutsideTopLevel = speculativeModelOutsideTopLevel.GetConversion(nodeToSpeculate.DescendantTokens().Single(n => n.ValueText == "x").Parent);
+            Assert.Equal(ConversionKind.NoConversion, conversionOutsideTopLevel.Kind);
+        }
+
+        [Fact]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/67050")]
+        public void EmptyLocalDeclaration()
+        {
+            var src = """
+struct S { }
+partial ext X
+""";
+            var comp = CreateCompilation(src);
+            comp.VerifyDiagnostics(
+                // (1,13): error CS1031: Type expected
+                // struct S { }
+                Diagnostic(ErrorCode.ERR_TypeExpected, "").WithLocation(1, 13),
+                // (1,13): error CS1525: Invalid expression term 'partial'
+                // struct S { }
+                Diagnostic(ErrorCode.ERR_InvalidExprTerm, "").WithArguments("partial").WithLocation(1, 13),
+                // (1,13): error CS1003: Syntax error, ',' expected
+                // struct S { }
+                Diagnostic(ErrorCode.ERR_SyntaxError, "").WithArguments(",").WithLocation(1, 13),
+                // (2,1): error CS8803: Top-level statements must precede namespace and type declarations.
+                // partial ext X
+                Diagnostic(ErrorCode.ERR_TopLevelStatementAfterNamespaceOrType, "").WithLocation(2, 1),
+                // (2,14): error CS1002: ; expected
+                // partial ext X
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "").WithLocation(2, 14)
+                );
+        }
+
+        [Fact]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/70909")]
+        public void ExplicitBase_01()
+        {
+            var src1 = """
+PrintLine();
+""";
+
+            var src2 = """
+﻿public class ProgramBase
+{
+    public static void PrintLine()
+    {
+        System.Console.WriteLine("Done");
+    }
+}
+
+partial class Program : ProgramBase
+{
+}
+""";
+            var comp = CreateCompilation(new[] { src1, src2 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
+
+            comp = CreateCompilation(new[] { src2, src1 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
+        }
+
+        [Fact]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/70909")]
+        public void ExplicitBase_02()
+        {
+            var src1 = """
+ProgramBase.PrintLine();
+""";
+
+            var src2 = """
+﻿public class ProgramBase
+{
+    public static void PrintLine()
+    {
+        System.Console.WriteLine("Done");
+    }
+}
+
+partial class Program : object
+{
+}
+""";
+            var comp = CreateCompilation(new[] { src1, src2 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
+
+            comp = CreateCompilation(new[] { src2, src1 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
+        }
+
+        [Fact]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/70909")]
+        public void ExplicitBase_03()
+        {
+            var src1 = """
+ProgramBase.PrintLine();
+""";
+
+            var src2 = """
+﻿public class ProgramBase
+{
+    public static void PrintLine()
+    {
+        System.Console.WriteLine("Done");
+    }
+}
+
+partial class Program
+{
+}
+""";
+            var comp = CreateCompilation(new[] { src1, src2 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
+
+            comp = CreateCompilation(new[] { src2, src1 }, options: TestOptions.ReleaseExe);
+            CompileAndVerify(comp, expectedOutput: "Done").VerifyDiagnostics();
         }
     }
 }
