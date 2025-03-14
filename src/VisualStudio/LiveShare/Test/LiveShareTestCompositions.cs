@@ -4,14 +4,13 @@
 
 #nullable disable
 
-using Microsoft.CodeAnalysis.Editor.UnitTests;
 using Microsoft.CodeAnalysis.Test.Utilities;
 
 namespace Microsoft.VisualStudio.LanguageServices.LiveShare.UnitTests
 {
     internal static class LiveShareTestCompositions
     {
-        public static readonly TestComposition Features = EditorTestCompositions.LanguageServerProtocol
+        public static readonly TestComposition Features = LspTestCompositions.LanguageServerProtocol
             .AddAssemblies(
                 typeof(LiveShareResources).Assembly);
     }

@@ -58,7 +58,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ConvertForEachToFor
                     foreachCollectionExpression.GetTrailingTrivia().Where(Function(t) t.IsWhitespaceOrEndOfLine()))
 
             ' and remove all trailing trivia if it is used for cast
-            If foreachInfo.RequireExplicitCastInterface Then
+            If foreachInfo.ExplicitCastInterface IsNot Nothing Then
                 expression = expression.WithoutTrailingTrivia()
             End If
 
@@ -79,11 +79,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ConvertForEachToFor
             If nextStatement.ControlVariables.Count > 0 Then
                 Debug.Assert(nextStatement.ControlVariables.Count = 1)
 
-                Dim controlVariable As SyntaxNode = nextStatement.ControlVariables(0)
-                controlVariable = generator.IdentifierName(
+                Dim controlVariable As ExpressionSyntax = nextStatement.ControlVariables(0)
+                controlVariable = CType(generator.IdentifierName(
                     indexVariable _
                         .WithLeadingTrivia(controlVariable.GetFirstToken().LeadingTrivia) _
-                        .WithTrailingTrivia(controlVariable.GetLastToken().TrailingTrivia))
+                        .WithTrailingTrivia(controlVariable.GetLastToken().TrailingTrivia)), ExpressionSyntax)
 
                 nextStatement = nextStatement.WithControlVariables(
                     SyntaxFactory.SingletonSeparatedList(controlVariable))

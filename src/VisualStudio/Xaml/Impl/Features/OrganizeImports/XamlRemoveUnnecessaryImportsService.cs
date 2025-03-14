@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable disable
-
 using System;
 using System.Composition;
 using System.Threading;
@@ -30,7 +28,7 @@ namespace Microsoft.CodeAnalysis.Editor.Xaml.OrganizeImports
             => RemoveUnnecessaryImportsAsync(document, predicate: null, cancellationToken: cancellationToken);
 
         public Task<Document> RemoveUnnecessaryImportsAsync(
-            Document document, Func<SyntaxNode, bool> predicate, CancellationToken cancellationToken)
+            Document document, Func<SyntaxNode, bool>? predicate, CancellationToken cancellationToken)
         {
             return _removeService.RemoveUnnecessaryNamespacesAsync(document, cancellationToken) ?? Task.FromResult(document);
         }

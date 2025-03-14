@@ -5,7 +5,6 @@
 #nullable disable
 
 using System;
-using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Options;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Options;
@@ -17,7 +16,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
 {
     internal abstract class AbstractAdornmentManagerProvider<TTag> :
         IWpfTextViewCreationListener
-        where TTag : GraphicsTag
+        where TTag : BrushTag
     {
         protected readonly IThreadingContext ThreadingContext;
         protected readonly IViewTagAggregatorFactoryService TagAggregatorFactoryService;

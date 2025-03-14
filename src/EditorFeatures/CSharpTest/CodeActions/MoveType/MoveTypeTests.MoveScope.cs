@@ -7,20 +7,21 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeRefactorings.MoveType;
+using Microsoft.CodeAnalysis.CSharp.Formatting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Test.Utilities;
-using Roslyn.Test.Utilities;
 using Xunit;
 
-namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeActions.MoveType
+namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeActions.MoveType;
+
+[Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
+public partial class MoveTypeTests : CSharpMoveTypeTestsBase
 {
-    public partial class MoveTypeTests : CSharpMoveTypeTestsBase
+    [Fact]
+    public Task MoveType_NamespaceScope_SingleItem()
     {
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_SingleItem()
-        {
-            var code =
+        var code =
 @"namespace N1
 {
     class [||]Class1
@@ -28,7 +29,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeActions.MoveType
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     class Class1
@@ -36,13 +37,13 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeActions.MoveType
     }
 }";
 
-            return TestNamespaceMove(code, expected, expectOperation: false);
-        }
+        return TestNamespaceMove(code, expected, expectOperation: false);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_SingleItemNamespaceComment()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_SingleItemNamespaceComment()
+    {
+        var code =
 @"// Comment on the namespace
 namespace N1
 {
@@ -51,7 +52,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"// Comment on the namespace
 namespace N1
 {
@@ -60,13 +61,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected, expectOperation: false);
-        }
+        return TestNamespaceMove(code, expected, expectOperation: false);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtTop()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtTop()
+    {
+        var code =
 @"namespace N1
 {
     class [||]Class1
@@ -78,43 +79,8 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
-{
-    class Class1
-    {
-    }
-}
-
-namespace N1
-{
-    class Class2
-    {
-    }
-}";
-
-            return TestNamespaceMove(code, expected);
-        }
-
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtTopNamespaceComment()
-        {
-            var code =
-@"// Comment on the namespace
-namespace N1
-{
-    class [||]Class1
-    {
-    }
-
-    class Class2
-    {
-    }
-}";
-
-            var expected =
-@"// Comment on the namespace
-namespace N1
 {
     class Class1
     {
@@ -128,13 +94,48 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtTopWithComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtTopNamespaceComment()
+    {
+        var code =
+@"// Comment on the namespace
+namespace N1
+{
+    class [||]Class1
+    {
+    }
+
+    class Class2
+    {
+    }
+}";
+
+        var expected =
+@"// Comment on the namespace
+namespace N1
+{
+    class Class1
+    {
+    }
+}
+
+namespace N1
+{
+    class Class2
+    {
+    }
+}";
+
+        return TestNamespaceMove(code, expected);
+    }
+
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtTopWithComments()
+    {
+        var code =
 @"namespace N1
 {
     // Class1 Comment
@@ -148,7 +149,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     // Class1 Comment
@@ -165,13 +166,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtTopWithXmlComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtTopWithXmlComments()
+    {
+        var code =
 @"namespace N1
 {
     /// <summary>
@@ -189,7 +190,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     /// <summary>
@@ -210,13 +211,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtBottom()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtBottom()
+    {
+        var code =
 @"namespace N1
 {
     class Class1
@@ -228,7 +229,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     class Class1
@@ -243,13 +244,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtBottomNamespaceComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtBottomNamespaceComments()
+    {
+        var code =
 @"// Comment on the namespace
 namespace N1
 {
@@ -262,7 +263,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"// Comment on the namespace
 namespace N1
 {
@@ -278,13 +279,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtBottomWithComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtBottomWithComments()
+    {
+        var code =
 @"namespace N1
 {
     // Class1 comment
@@ -298,7 +299,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     // Class1 comment
@@ -315,13 +316,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemAtBottomWithXmlComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemAtBottomWithXmlComments()
+    {
+        var code =
 @"namespace N1
 {
     /// <summary>
@@ -339,7 +340,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     /// <summary>
@@ -360,13 +361,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemInMiddle()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemInMiddle()
+    {
+        var code =
 @"namespace N1
 {
     class Class1
@@ -390,7 +391,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     class Class1
@@ -420,13 +421,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemInMiddleNamespaceComment()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemInMiddleNamespaceComment()
+    {
+        var code =
 @"// Comment on the namespace
 namespace N1
 {
@@ -451,7 +452,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"// Comment on the namespace
 namespace N1
 {
@@ -482,13 +483,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemInMiddleWithComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemInMiddleWithComments()
+    {
+        var code =
 @"namespace N1
 {
     // Class1 comment
@@ -517,7 +518,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     // Class1 comment
@@ -552,13 +553,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemInMiddleWithXmlComments()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemInMiddleWithXmlComments()
+    {
+        var code =
 @"namespace N1
 {
     /// <summary>
@@ -597,7 +598,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     /// <summary>
@@ -642,13 +643,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemInMiddleWithInterface()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemInMiddleWithInterface()
+    {
+        var code =
 @"namespace N1
 {
     // Class1 comment
@@ -679,7 +680,7 @@ namespace N1
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     // Class1 comment
@@ -716,13 +717,13 @@ namespace N1
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_TwoItemsInDifferentNamespace()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_TwoItemsInDifferentNamespace()
+    {
+        var code =
 @"namespace N1
 {
     class [||]Class1
@@ -737,7 +738,7 @@ namespace N2
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     class Class1
@@ -752,13 +753,13 @@ namespace N2
     }
 }";
 
-            return TestNamespaceMove(code, expected, expectOperation: false);
-        }
+        return TestNamespaceMove(code, expected, expectOperation: false);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_ItemsInDifferentNamespace()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_ItemsInDifferentNamespace()
+    {
+        var code =
 @"namespace N1
 {
     interface IClass1
@@ -777,7 +778,7 @@ namespace N2
     }
 }";
 
-            var expected =
+        var expected =
 @"namespace N1
 {
     interface IClass1
@@ -799,13 +800,13 @@ namespace N2
     }
 }";
 
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_NestedNamespaces()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_NestedNamespaces()
+    {
+        var code =
 @"namespace N1
 {
     namespace N2
@@ -823,7 +824,7 @@ namespace N2
     {
     }
 }";
-            var expected =
+        var expected =
 @"namespace N1
 {
     namespace N1.N2
@@ -844,13 +845,13 @@ namespace N2
     {
     }
 }";
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsMoveType)]
-        public Task MoveType_NamespaceScope_NestedNamespaces2()
-        {
-            var code =
+    [Fact]
+    public Task MoveType_NamespaceScope_NestedNamespaces2()
+    {
+        var code =
 @"namespace N1
 {
     namespace N2
@@ -875,7 +876,7 @@ namespace N2
         }
     }
 }";
-            var expected =
+        var expected =
 @"namespace N1
 {
     namespace N2
@@ -906,35 +907,34 @@ namespace N1
         }
     }
 }";
-            return TestNamespaceMove(code, expected);
-        }
+        return TestNamespaceMove(code, expected);
+    }
 
-        private async Task TestNamespaceMove(string originalCode, string expectedCode, bool expectOperation = true)
+    private async Task TestNamespaceMove(string originalCode, string expectedCode, bool expectOperation = true)
+    {
+        using var workspace = CreateWorkspaceFromOptions(originalCode);
+        var documentToModifyId = workspace.Documents[0].Id;
+        var textSpan = workspace.Documents[0].SelectedSpans[0];
+        var documentToModify = workspace.CurrentSolution.GetDocument(documentToModifyId);
+
+        var moveTypeService = documentToModify.GetLanguageService<IMoveTypeService>();
+        Assert.NotNull(moveTypeService);
+
+        var modifiedSolution = await moveTypeService.GetModifiedSolutionAsync(documentToModify, textSpan, MoveTypeOperationKind.MoveTypeNamespaceScope, CancellationToken.None).ConfigureAwait(false);
+
+        if (expectOperation)
         {
-            using var workspace = CreateWorkspaceFromOptions(originalCode, default);
-            var documentToModifyId = workspace.Documents[0].Id;
-            var textSpan = workspace.Documents[0].SelectedSpans[0];
-            var documentToModify = workspace.CurrentSolution.GetDocument(documentToModifyId);
-
-            var moveTypeService = documentToModify.GetLanguageService<IMoveTypeService>();
-            Assert.NotNull(moveTypeService);
-
-            var modifiedSolution = await moveTypeService.GetModifiedSolutionAsync(documentToModify, textSpan, MoveTypeOperationKind.MoveTypeNamespaceScope, CancellationToken.None).ConfigureAwait(false);
-
-            if (expectOperation)
-            {
-                Assert.NotEqual(documentToModify.Project.Solution, modifiedSolution);
-            }
-            else
-            {
-                Assert.Equal(documentToModify.Project.Solution, modifiedSolution);
-            }
-
-            var modifiedDocument = modifiedSolution.GetDocument(documentToModifyId);
-            var formattedDocument = await Formatter.FormatAsync(modifiedDocument).ConfigureAwait(false);
-
-            var formattedText = await formattedDocument.GetTextAsync().ConfigureAwait(false);
-            Assert.Equal(expectedCode, formattedText.ToString());
+            Assert.NotEqual(documentToModify.Project.Solution, modifiedSolution);
         }
+        else
+        {
+            Assert.Equal(documentToModify.Project.Solution, modifiedSolution);
+        }
+
+        var modifiedDocument = modifiedSolution.GetDocument(documentToModifyId);
+        var formattedDocument = await Formatter.FormatAsync(modifiedDocument, CSharpSyntaxFormattingOptions.Default, CancellationToken.None).ConfigureAwait(false);
+
+        var formattedText = await formattedDocument.GetTextAsync().ConfigureAwait(false);
+        Assert.Equal(expectedCode, formattedText.ToString());
     }
 }

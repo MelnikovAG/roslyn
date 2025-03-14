@@ -6,15 +6,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim.Interop;
-using Roslyn.Utilities;
 
 namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 {
@@ -23,7 +22,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
     ///
     /// This class is free-threaded.
     /// </summary>
-    internal class TempPECompilerService : ICSharpTempPECompilerService
+    internal sealed class TempPECompilerService : ICSharpTempPECompilerService
     {
         private readonly IMetadataService _metadataService;
 
@@ -41,8 +40,8 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 
             for (var i = 0; i < fileNames.Length; i++)
             {
-                // create a parse tree w/o encoding - the tree won't be used to emit PDBs
-                trees.Add(SyntaxFactory.ParseSyntaxTree(fileContents[i], parsedArguments.ParseOptions, fileNames[i]));
+                var sourceText = SourceText.From(fileContents[i], parsedArguments.Encoding, parsedArguments.ChecksumAlgorithm);
+                trees.Add(SyntaxFactory.ParseSyntaxTree(sourceText, parsedArguments.ParseOptions, fileNames[i]));
             }
 
             // TODO (tomat): Revisit compilation options: app.config, strong name, search paths, etc? (bug #869604)
@@ -50,7 +49,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 
             var metadataResolver = new WorkspaceMetadataFileReferenceResolver(
                 _metadataService,
-                new RelativePathResolver(ImmutableArray<string>.Empty, baseDirectory: null));
+                new RelativePathResolver([], baseDirectory: null));
 
             var compilation = CSharpCompilation.Create(
                 Path.GetFileName(pszOutputFileName),
@@ -67,7 +66,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
             return result.Success ? VSConstants.S_OK : VSConstants.S_FALSE;
         }
 
-        private CSharpCommandLineArguments ParseCommandLineArguments(string baseDirectory, string[] optionNames, object[] optionValues)
+        private static CSharpCommandLineArguments ParseCommandLineArguments(string baseDirectory, string[] optionNames, object[] optionValues)
         {
             Contract.ThrowIfFalse(optionNames.Length == optionValues.Length);
 
@@ -81,7 +80,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
                 if (optionName == "r")
                 {
                     // We get a pipe-delimited list of references, so split them back apart
-                    foreach (var reference in ((string)optionValue).Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var reference in ((string)optionValue).Split(['|'], StringSplitOptions.RemoveEmptyEntries))
                     {
                         arguments.Add(string.Format("/r:\"{0}\"", reference));
                     }

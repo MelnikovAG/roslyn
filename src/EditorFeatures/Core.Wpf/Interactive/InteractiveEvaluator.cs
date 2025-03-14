@@ -10,7 +10,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Editor.Implementation.Interactive;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.ErrorReporting;
@@ -21,9 +20,8 @@ using Microsoft.VisualStudio.InteractiveWindow.Commands;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Utilities;
-using Roslyn.Utilities;
 
-namespace Microsoft.CodeAnalysis.Editor.Interactive
+namespace Microsoft.CodeAnalysis.Interactive
 {
     using InteractiveHost::Microsoft.CodeAnalysis.Interactive;
 
@@ -52,14 +50,14 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
         /// Includes both command buffers as well as language buffers.
         /// Does not include the current buffer unless it has been submitted.
         /// </remarks>
-        private readonly List<ITextBuffer> _submittedBuffers = new();
+        private readonly List<ITextBuffer> _submittedBuffers = [];
 
         #endregion
 
         public IContentType ContentType { get; }
 
         public InteractiveEvaluatorResetOptions ResetOptions { get; set; }
-            = new InteractiveEvaluatorResetOptions(InteractiveHostPlatform.Desktop64);
+            = new InteractiveEvaluatorResetOptions(InteractiveHostPlatform.Core);
 
         internal CSharpInteractiveEvaluator(
             IThreadingContext threadingContext,
@@ -69,10 +67,11 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
             IViewClassifierAggregatorService classifierAggregator,
             IInteractiveWindowCommandsFactory commandsFactory,
             ImmutableArray<IInteractiveWindowCommand> commands,
+            ITextDocumentFactoryService textDocumentFactoryService,
             InteractiveEvaluatorLanguageInfoProvider languageInfo,
             string initialWorkingDirectory)
         {
-            Debug.Assert(languageInfo.InteractiveResponseFileName.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) == -1);
+            Debug.Assert(languageInfo.InteractiveResponseFileName.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) == -1);
 
             _threadingContext = threadingContext;
             ContentType = contentType;
@@ -83,7 +82,13 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
             _workspace = new InteractiveWindowWorkspace(hostServices);
 
-            _session = new InteractiveSession(_workspace, threadingContext, listener, languageInfo, initialWorkingDirectory);
+            _session = new InteractiveSession(
+                _workspace,
+                listener,
+                textDocumentFactoryService,
+                languageInfo,
+                initialWorkingDirectory);
+
             _session.Host.ProcessInitialized += ProcessInitialized;
         }
 
@@ -249,7 +254,7 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
             }
             catch (Exception e) when (FatalError.ReportAndPropagate(e))
             {
-                throw ExceptionUtilities.Unreachable;
+                throw ExceptionUtilities.Unreachable();
             }
         }
 

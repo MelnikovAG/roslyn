@@ -5,6 +5,7 @@
 #nullable disable
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Windows.Threading;
@@ -13,16 +14,16 @@ using Microsoft.CodeAnalysis.Internal.Log;
 using Microsoft.CodeAnalysis.Shared.TestHooks;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Threading;
-using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
 {
     /// <summary>
     /// UI manager for graphic overlay tags. These tags will simply paint something related to the text.
     /// </summary>
-    internal abstract class AbstractAdornmentManager<T> where T : GraphicsTag
+    internal abstract class AbstractAdornmentManager<T> where T : BrushTag
     {
         private readonly object _invalidatedSpansLock = new();
 
@@ -52,6 +53,8 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
         /// For us the end result is the same - get tags from tagger and update visuals correspondingly.
         /// </summary>        
         protected abstract void AddAdornmentsToAdornmentLayer_CallOnlyOnUIThread(NormalizedSnapshotSpanCollection changedSpanCollection);
+
+        protected abstract void RemoveAdornmentFromAdornmentLayer_CallOnlyOnUIThread(SnapshotSpan span);
 
         internal AbstractAdornmentManager(
             IThreadingContext threadingContext,
@@ -162,7 +165,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
                     if (_invalidatedSpans == null)
                     {
                         // set invalidated spans
-                        _invalidatedSpans = new List<IMappingSpan> { changedSpan };
+                        _invalidatedSpans = [changedSpan];
 
                         needToScheduleUpdate = true;
                     }
@@ -243,7 +246,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
                     // is there any effect on the view?
                     if (viewLines.IntersectsBufferSpan(changedSpan))
                     {
-                        AdornmentLayer.RemoveAdornmentsByVisualSpan(changedSpan);
+                        RemoveAdornmentFromAdornmentLayer_CallOnlyOnUIThread(changedSpan);
                     }
                 }
             }
@@ -251,40 +254,43 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Adornments
             AddAdornmentsToAdornmentLayer_CallOnlyOnUIThread(changedSpanCollection);
         }
 
-        protected bool ShouldDrawTag(SnapshotSpan snapshotSpan, IMappingTagSpan<GraphicsTag> mappingTagSpan, out SnapshotPoint mappedPoint)
+        protected bool TryGetMappedPoint(
+            SnapshotSpan snapshotSpan,
+            IMappingTagSpan<T> mappingTagSpan,
+            out SnapshotPoint mappedPoint)
         {
-            mappedPoint = default;
-            var point = GetMappedPoint(snapshotSpan, mappingTagSpan);
+            var mappedPointOpt = GetMappedPoint(snapshotSpan, mappingTagSpan);
+            mappedPoint = mappedPointOpt is null ? default : mappedPointOpt.Value;
+            return mappedPointOpt != null;
+        }
 
-            if (point is null)
-            {
-                return false;
-            }
+        protected bool TryGetViewLine(SnapshotPoint mappedPoint, [NotNullWhen(true)] out IWpfTextViewLine viewLine)
+        {
+            viewLine = TextView.TextViewLines.GetTextViewLineContainingBufferPosition(mappedPoint);
+            return viewLine != null;
+        }
 
+        protected bool ShouldDrawTag(IMappingTagSpan<T> mappingTagSpan)
+        {
             if (!TryMapToSingleSnapshotSpan(mappingTagSpan.Span, TextView.TextSnapshot, out var span))
-            {
                 return false;
-            }
 
             if (!TextView.TextViewLines.IntersectsBufferSpan(span))
-            {
                 return false;
-            }
 
-            mappedPoint = point.Value;
             return true;
         }
 
-        protected SnapshotPoint? GetMappedPoint(SnapshotSpan snapshotSpan, IMappingTagSpan<GraphicsTag> mappingTagSpan)
+        protected SnapshotPoint? GetMappedPoint(SnapshotSpan snapshotSpan, IMappingTagSpan<T> mappingTagSpan)
         {
-            var point = mappingTagSpan.Span.Start.GetPoint(snapshotSpan.Snapshot, PositionAffinity.Predecessor);
+            var point = mappingTagSpan.Span.End.GetPoint(snapshotSpan.Snapshot, PositionAffinity.Predecessor);
             if (point == null)
             {
                 return null;
             }
 
             var mappedPoint = TextView.BufferGraph.MapUpToSnapshot(
-                point.Value, PointTrackingMode.Negative, PositionAffinity.Predecessor, TextView.VisualSnapshot);
+                point.Value, PointTrackingMode.Negative, PositionAffinity.Predecessor, TextView.TextSnapshot);
             if (mappedPoint == null)
             {
                 return null;

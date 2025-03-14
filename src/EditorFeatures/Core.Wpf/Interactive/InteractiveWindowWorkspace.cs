@@ -5,7 +5,7 @@
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.VisualStudio.InteractiveWindow;
 
-namespace Microsoft.CodeAnalysis.Editor.Interactive
+namespace Microsoft.CodeAnalysis.Interactive
 {
     internal sealed class InteractiveWindowWorkspace : InteractiveWorkspace
     {

@@ -2,11 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable disable
-
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Emit;
 
 namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
@@ -25,6 +24,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
         /// </summary>
         private ImmutableArray<CSharpAttributeData> _lazyCustomAttributes;
 
+        private TypeWithAnnotations.Boxed? _lazyTypeWithAnnotations;
+
         protected RetargetingParameterSymbol(ParameterSymbol underlyingParameter)
             : base(underlyingParameter)
         {
@@ -40,7 +41,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
         {
             get
             {
-                return this.RetargetingModule.RetargetingTranslator.Retarget(_underlyingParameter.TypeWithAnnotations, RetargetOptions.RetargetPrimitiveTypesByTypeCode);
+                if (_lazyTypeWithAnnotations is null)
+                {
+                    Interlocked.CompareExchange(ref _lazyTypeWithAnnotations,
+                        new TypeWithAnnotations.Boxed(this.RetargetingModule.RetargetingTranslator.Retarget(_underlyingParameter.TypeWithAnnotations, RetargetOptions.RetargetPrimitiveTypesByTypeCode)),
+                        null);
+                }
+
+                return _lazyTypeWithAnnotations.Value;
             }
         }
 
@@ -118,7 +126,16 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
             }
         }
 
-        internal sealed override CSharpCompilation DeclaringCompilation // perf, not correctness
+        /// <summary>
+        /// <inheritdoc/>
+        /// </summary>
+        /// <remarks>
+        /// This override is done for performance reasons. Lacking the override this would redirect to 
+        /// <see cref="RetargetingModuleSymbol.DeclaringCompilation"/> which returns null. The override 
+        /// short circuits the overhead in <see cref="Symbol.DeclaringCompilation"/> and the extra virtual
+        /// dispatch and just returns null.
+        /// </remarks>
+        internal sealed override CSharpCompilation? DeclaringCompilation
         {
             get { return null; }
         }

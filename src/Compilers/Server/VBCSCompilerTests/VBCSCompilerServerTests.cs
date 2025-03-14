@@ -38,7 +38,7 @@ namespace Microsoft.CodeAnalysis.CompilerServer.UnitTests
             public async Task ShadowCopyAnalyzerAssemblyLoaderMissingDirectory()
             {
                 var baseDirectory = Path.Combine(Path.GetTempPath(), TestBase.GetUniqueName());
-                var loader = new ShadowCopyAnalyzerAssemblyLoader(baseDirectory);
+                var loader = new ShadowCopyAnalyzerAssemblyLoader(baseDirectory: baseDirectory);
                 var task = loader.DeleteLeftoverDirectoriesTask;
                 await task;
                 Assert.False(task.IsFaulted);
@@ -57,7 +57,7 @@ namespace Microsoft.CodeAnalysis.CompilerServer.UnitTests
             private Task<int> RunShutdownAsync(string pipeName, bool waitForProcess = true, CancellationToken cancellationToken = default(CancellationToken))
             {
                 var appSettings = new NameValueCollection();
-                return new BuildServerController(appSettings, Logger).RunShutdownAsync(pipeName, waitForProcess, cancellationToken);
+                return new BuildServerController(appSettings, Logger).RunShutdownAsync(pipeName, waitForProcess, Timeout.Infinite, cancellationToken);
             }
 
             [Fact]

@@ -6,16 +6,14 @@
 
 using System;
 using System.Composition;
-using Microsoft.CodeAnalysis.Editor.Interactive;
 using Microsoft.CodeAnalysis.Editor.Undo;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.VisualStudio.Text.Operations;
-using Roslyn.Utilities;
 
-namespace Microsoft.CodeAnalysis.Editor.Implementation.Interactive
+namespace Microsoft.CodeAnalysis.Interactive
 {
-    [ExportWorkspaceServiceFactory(typeof(IGlobalUndoService), WorkspaceKind.Interactive), Shared]
+    [ExportWorkspaceServiceFactory(typeof(IGlobalUndoService), [WorkspaceKind.Interactive]), Shared]
     internal sealed class InteractiveGlobalUndoServiceFactory : IWorkspaceServiceFactory
     {
         private readonly GlobalUndoService _singleton;

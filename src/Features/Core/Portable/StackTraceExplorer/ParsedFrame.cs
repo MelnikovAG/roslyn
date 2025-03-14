@@ -2,18 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace Microsoft.CodeAnalysis.StackTraceExplorer
-{
-    internal abstract class ParsedFrame
-    {
-        /// <summary>
-        /// The original text that this frame was parsed from
-        /// </summary>
-        public string OriginalText { get; }
+namespace Microsoft.CodeAnalysis.StackTraceExplorer;
 
-        public ParsedFrame(string originalText)
-        {
-            OriginalText = originalText;
-        }
+internal abstract class ParsedFrame
+{
+    public ParsedFrame()
+    {
     }
 }

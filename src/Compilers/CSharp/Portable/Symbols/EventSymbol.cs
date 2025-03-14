@@ -228,6 +228,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         /// </remarks>
         public abstract ImmutableArray<EventSymbol> ExplicitInterfaceImplementations { get; }
 
+        internal virtual EventSymbol? PartialImplementationPart => null;
+        internal virtual EventSymbol? PartialDefinitionPart => null;
+        internal virtual bool IsPartialDefinition => false;
+
         /// <summary>
         /// Gets the kind of this symbol.
         /// </summary>
@@ -307,20 +311,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             return false;
         }
 
-        protected override int HighestPriorityUseSiteError
-        {
-            get
-            {
-                return (int)ErrorCode.ERR_BindToBogus;
-            }
-        }
+        protected sealed override bool IsHighestPriorityUseSiteErrorCode(int code) => code is (int)ErrorCode.ERR_UnsupportedCompilerFeature or (int)ErrorCode.ERR_BindToBogus;
 
         public sealed override bool HasUnsupportedMetadata
         {
             get
             {
                 DiagnosticInfo? info = GetUseSiteInfo().DiagnosticInfo;
-                return (object?)info != null && info.Code == (int)ErrorCode.ERR_BindToBogus;
+                return (object?)info != null && info.Code is (int)ErrorCode.ERR_BindToBogus or (int)ErrorCode.ERR_UnsupportedCompilerFeature;
             }
         }
 

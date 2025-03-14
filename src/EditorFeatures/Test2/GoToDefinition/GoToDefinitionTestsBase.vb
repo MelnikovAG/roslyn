@@ -3,22 +3,19 @@
 ' See the LICENSE file in the project root for more information.
 
 Imports System.Threading
-Imports Microsoft.CodeAnalysis.Editor.CSharp.GoToDefinition
-Imports Microsoft.CodeAnalysis.Editor.Host
+Imports Microsoft.CodeAnalysis.Editor.CSharp.Navigation
 Imports Microsoft.CodeAnalysis.Editor.Shared.Utilities
 Imports Microsoft.CodeAnalysis.Editor.UnitTests.Utilities.GoToHelpers
-Imports Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces
-Imports Microsoft.CodeAnalysis.Editor.VisualBasic.GoToDefinition
+Imports Microsoft.CodeAnalysis.Editor.VisualBasic.Navigation
 Imports Microsoft.CodeAnalysis.Navigation
 Imports Microsoft.VisualStudio.Text
 
 Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
-    Public Class GoToDefinitionTestsBase
-        Private Shared Sub Test(
+    Public MustInherit Class GoToDefinitionTestsBase
+        Public Shared Async Function TestAsync(
                 workspaceDefinition As XElement,
-                expectedResult As Boolean,
-                executeOnDocument As Func(Of Document, Integer, IThreadingContext, IStreamingFindUsagesPresenter, Boolean))
-            Using workspace = TestWorkspace.Create(workspaceDefinition, composition:=GoToTestHelpers.Composition)
+                Optional expectedResult As Boolean = True) As Task
+            Using workspace = EditorTestWorkspace.Create(workspaceDefinition, composition:=GoToTestHelpers.Composition)
                 Dim solution = workspace.CurrentSolution
                 Dim cursorDocument = workspace.Documents.First(Function(d) d.CursorPosition.HasValue)
                 Dim cursorPosition = cursorDocument.CursorPosition.Value
@@ -41,8 +38,17 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
                 Dim presenterCalled As Boolean = False
                 Dim threadingContext = workspace.ExportProvider.GetExportedValue(Of IThreadingContext)()
                 Dim presenter = New MockStreamingFindUsagesPresenter(Sub() presenterCalled = True)
-                Dim actualResult = executeOnDocument(document, cursorPosition, threadingContext, presenter)
 
+                Dim goToDefService = If(document.Project.Language = LanguageNames.CSharp,
+                    DirectCast(New CSharpDefinitionLocationService(threadingContext, presenter), IDefinitionLocationService),
+                    New VisualBasicDefinitionLocationService(threadingContext, presenter))
+
+                Dim defLocationAndSpan = Await goToDefService.GetDefinitionLocationAsync(
+                    document, cursorPosition, CancellationToken.None)
+                Dim defLocation = defLocationAndSpan?.Location
+
+                Dim actualResult = defLocation IsNot Nothing AndAlso
+                    Await defLocation.NavigateToAsync(NavigationOptions.Default, CancellationToken.None)
                 Assert.Equal(expectedResult, actualResult)
 
                 Dim expectedLocations As New List(Of FilePathAndSpan)
@@ -55,13 +61,32 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
 
                 expectedLocations.Sort()
 
+                Dim expectedPresenterLocations = workspace.Documents.
+                    Where(Function(d) d.AnnotatedSpans.ContainsKey("PresenterLocation")).
+                    Select(Function(d) (d.Id, spans:=d.AnnotatedSpans("PresenterLocation")))
+
                 Dim context = presenter.Context
                 If expectedResult Then
                     If expectedLocations.Count = 0 Then
-                        ' if there is not expected locations, it means symbol navigation is used
-                        Assert.True(mockSymbolNavigationService._triedNavigationToSymbol, "a navigation took place")
-                        Assert.Null(mockDocumentNavigationService._documentId)
-                        Assert.False(presenterCalled)
+                        If expectedPresenterLocations.Any() Then
+                            ' multiple results shown in the streaming presenter.
+                            Assert.True(presenterCalled)
+
+                            Dim presenterReferences = context.GetReferences()
+
+                            Assert.Equal(presenterReferences.Length, expectedPresenterLocations.Sum(Function(t) t.spans.Length))
+
+                            For Each tuple In expectedPresenterLocations
+                                For Each sourceSpan In tuple.spans
+                                    Assert.True(presenterReferences.Any(Function(r) r.SourceSpan.Document.Id = tuple.Id AndAlso r.SourceSpan.SourceSpan = sourceSpan))
+                                Next
+                            Next
+                        Else
+                            ' if there is not expected locations, it means symbol navigation is used
+                            Assert.True(mockSymbolNavigationService._triedNavigationToSymbol, "a navigation took place")
+                            Assert.Null(mockDocumentNavigationService._documentId)
+                            Assert.False(presenterCalled)
+                        End If
                     Else
                         Assert.False(mockSymbolNavigationService._triedNavigationToSymbol)
 
@@ -76,13 +101,11 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
                             Dim definitionDocument = workspace.GetTestDocument(mockDocumentNavigationService._documentId)
                             Assert.Single(definitionDocument.SelectedSpans)
                             Dim expected = definitionDocument.SelectedSpans.Single()
-                            Assert.True(expected.Length = 0)
                             Assert.Equal(expected.Start, mockDocumentNavigationService._position)
 
                             ' The INavigableItemsPresenter should not have been called
                             Assert.False(presenterCalled)
                         Else
-                            Assert.False(mockDocumentNavigationService._triedNavigationToLineAndOffset)
                             Assert.True(presenterCalled)
 
                             Dim actualLocations As New List(Of FilePathAndSpan)
@@ -107,20 +130,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
                     Assert.Null(mockDocumentNavigationService._documentId)
                     Assert.False(presenterCalled)
                 End If
-
             End Using
-        End Sub
-
-        Friend Shared Sub Test(workspaceDefinition As XElement, Optional expectedResult As Boolean = True)
-            Test(workspaceDefinition, expectedResult,
-                Function(document, cursorPosition, threadingContext, presenter)
-                    Dim goToDefService = If(document.Project.Language = LanguageNames.CSharp,
-                        DirectCast(New CSharpGoToDefinitionService(threadingContext, presenter), IGoToDefinitionService),
-                        New VisualBasicGoToDefinitionService(threadingContext, presenter))
-
-                    Return goToDefService.TryGoToDefinition(document, cursorPosition, CancellationToken.None)
-                End Function)
-        End Sub
-
+        End Function
     End Class
 End Namespace

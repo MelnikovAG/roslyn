@@ -4,224 +4,282 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Documents;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
-using Microsoft.CodeAnalysis.Editor.GoToDefinition;
-using Microsoft.CodeAnalysis.Editor.Host;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
-using Microsoft.CodeAnalysis.StackTraceExplorer;
+using Microsoft.CodeAnalysis.EmbeddedLanguages.Common;
+using Microsoft.CodeAnalysis.EmbeddedLanguages.StackFrame;
 using Microsoft.CodeAnalysis.ErrorReporting;
+using Microsoft.CodeAnalysis.FindUsages;
 using Microsoft.CodeAnalysis.Navigation;
-using Microsoft.CodeAnalysis.Options;
+using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.CodeAnalysis.StackTraceExplorer;
 using Microsoft.VisualStudio.Text.Classification;
 using Roslyn.Utilities;
-using System.Diagnostics;
 
-namespace Microsoft.VisualStudio.LanguageServices.StackTraceExplorer
+namespace Microsoft.VisualStudio.LanguageServices.StackTraceExplorer;
+
+using StackFrameToken = EmbeddedSyntaxToken<StackFrameKind>;
+using StackFrameTrivia = EmbeddedSyntaxTrivia<StackFrameKind>;
+
+internal class StackFrameViewModel(
+    ParsedStackFrame frame,
+    IThreadingContext threadingContext,
+    Workspace workspace,
+    IClassificationFormatMap formatMap,
+    ClassificationTypeMap typeMap) : FrameViewModel(formatMap, typeMap)
 {
-    internal class StackFrameViewModel : FrameViewModel
+    private readonly ParsedStackFrame _frame = frame;
+    private readonly IThreadingContext _threadingContext = threadingContext;
+    private readonly Workspace _workspace = workspace;
+    private readonly IStackTraceExplorerService _stackExplorerService = workspace.Services.GetRequiredService<IStackTraceExplorerService>();
+    private readonly Dictionary<StackFrameSymbolPart, DefinitionItem?> _definitionCache = [];
+
+    private TextDocument? _cachedDocument;
+    private int _cachedLineNumber;
+
+    public override bool ShowMouseOver => true;
+
+    public void NavigateToClass()
     {
-        private readonly ParsedStackFrame _frame;
-        private readonly IThreadingContext _threadingContext;
-        private readonly Workspace _workspace;
-        private readonly IStreamingFindUsagesPresenter _streamingPresenter;
+        var cancellationToken = _threadingContext.DisposalToken;
+        Task.Run(() => NavigateToClassAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
+    }
 
-        private ISymbol? _cachedSymbol;
-        private Document? _cachedDocument;
-        private int _cachedLineNumber;
-
-        public StackFrameViewModel(
-            ParsedStackFrame frame,
-            IThreadingContext threadingContext,
-            Workspace workspace,
-            IClassificationFormatMap formatMap,
-            ClassificationTypeMap typeMap,
-            IStreamingFindUsagesPresenter streamingPresenter)
-            : base(formatMap, typeMap)
+    public async Task NavigateToClassAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            _frame = frame;
-            _threadingContext = threadingContext;
-            _workspace = workspace;
-            _streamingPresenter = streamingPresenter;
+            var definition = await GetDefinitionAsync(StackFrameSymbolPart.ContainingType, cancellationToken).ConfigureAwait(false);
+            await NavigateToDefinitionAsync(definition, cancellationToken).ConfigureAwait(false);
         }
-
-        public override bool ShowMouseOver => true;
-
-        public void NavigateToClass()
+        catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
         {
-            var cancellationToken = _threadingContext.DisposalToken;
-            Task.Run(() => NavigateToClassAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
         }
+    }
 
-        public async Task NavigateToClassAsync(CancellationToken cancellationToken)
+    private async Task NavigateToDefinitionAsync(DefinitionItem? definition, CancellationToken cancellationToken)
+    {
+        if (definition is null)
+            return;
+
+        var location = await definition.GetNavigableLocationAsync(
+            _workspace, cancellationToken).ConfigureAwait(false);
+        await location.TryNavigateToAsync(
+            _threadingContext, new NavigationOptions(PreferProvisionalTab: true, ActivateTab: false), cancellationToken).ConfigureAwait(false);
+    }
+
+    public void NavigateToSymbol()
+    {
+        var cancellationToken = _threadingContext.DisposalToken;
+        Task.Run(() => NavigateToMethodAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
+    }
+
+    public async Task NavigateToMethodAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            try
+            var definition = await GetDefinitionAsync(StackFrameSymbolPart.Method, cancellationToken).ConfigureAwait(false);
+            await NavigateToDefinitionAsync(definition, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
+        {
+        }
+    }
+
+    public void NavigateToFile()
+    {
+        var cancellationToken = _threadingContext.DisposalToken;
+        Task.Run(() => NavigateToFileAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
+    }
+
+    public async Task NavigateToFileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (textDocument, lineNumber) = GetDocumentAndLine();
+
+            if (textDocument is not null)
             {
-                var symbol = await GetSymbolAsync(cancellationToken).ConfigureAwait(false);
+                var sourceText = await textDocument.GetValueTextAsync(cancellationToken).ConfigureAwait(false);
 
-                if (symbol is not { ContainingSymbol: not null })
-                {
-                    // Show some dialog?
+                // If the line number is larger than the total lines in the file
+                // then just go to the end of the file (lines count). This can happen
+                // if the file changed between the stack trace being looked at and the current
+                // version of the file.
+                lineNumber = Math.Min(sourceText.Lines.Count, lineNumber);
+
+                var navigationService = _workspace.Services.GetService<IDocumentNavigationService>();
+                if (navigationService is null)
                     return;
-                }
 
-                // Use the parent class instead of the method to navigate to
-                symbol = symbol.ContainingSymbol;
+                // While navigating do not activate the tab, which will change focus from the tool window
+                var options = new NavigationOptions(PreferProvisionalTab: true, ActivateTab: false);
 
-                var success = NavigateToSymbol(symbol, cancellationToken);
-                if (!success)
-                {
-                    // show some dialog?
-                    return;
-                }
-            }
-            catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
-            {
+                await navigationService.TryNavigateToLineAndOffsetAsync(
+                    _threadingContext, _workspace, textDocument.Id, lineNumber - 1, offset: 0, options, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
-
-        public void NavigateToSymbol()
+        catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
         {
-            var cancellationToken = _threadingContext.DisposalToken;
-            Task.Run(() => NavigateToMethodAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
+        }
+    }
+
+    protected override IEnumerable<Inline> CreateInlines()
+    {
+        var methodDeclaration = _frame.Root.MethodDeclaration;
+        var tree = _frame.Tree;
+        var className = methodDeclaration.MemberAccessExpression.Left;
+        var classLeadingTrivia = GetLeadingTrivia(className);
+        yield return MakeClassifiedRun(ClassificationTypeNames.Text, CreateString(classLeadingTrivia));
+
+        //
+        // Build the link to the class
+        //
+
+        var classLink = new Hyperlink();
+        var classLinkText = className.ToString();
+        classLink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.ClassName, classLinkText));
+        classLink.Click += (s, a) => NavigateToClass();
+        classLink.RequestNavigate += (s, a) => NavigateToClass();
+        yield return classLink;
+
+        // Since we're only using the left side of a qualified name, we expect 
+        // there to be no trivia on the right (trailing).
+        Debug.Assert(GetTrailingTrivia(className).IsEmpty);
+
+        //
+        // Build the link to the method
+        //
+        var methodLink = new Hyperlink();
+        var methodTextBuilder = new StringBuilder();
+        methodTextBuilder.Append(methodDeclaration.MemberAccessExpression.DotToken.ToFullString());
+        methodTextBuilder.Append(methodDeclaration.MemberAccessExpression.Right.ToFullString());
+
+        if (methodDeclaration.TypeArguments is not null)
+        {
+            methodTextBuilder.Append(methodDeclaration.TypeArguments.ToFullString());
         }
 
-        public async Task NavigateToMethodAsync(CancellationToken cancellationToken)
+        methodTextBuilder.Append(methodDeclaration.ArgumentList.ToFullString());
+        methodLink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.MethodName, methodTextBuilder.ToString()));
+        methodLink.Click += (s, a) => NavigateToSymbol();
+        methodLink.RequestNavigate += (s, a) => NavigateToSymbol();
+        yield return methodLink;
+
+        //
+        // If there is file information build a link to that
+        //
+        if (_frame.Root.FileInformationExpression is not null)
         {
-            try
-            {
-                var symbol = await _frame.ResolveSymbolAsync(_workspace.CurrentSolution, cancellationToken).ConfigureAwait(false);
+            var fileInformation = _frame.Root.FileInformationExpression;
+            var leadingTrivia = GetLeadingTrivia(fileInformation);
+            yield return MakeClassifiedRun(ClassificationTypeNames.Text, CreateString(leadingTrivia));
 
-                if (symbol is null)
-                {
-                    // Show some dialog?
-                    return;
-                }
+            var fileLink = new Hyperlink();
+            var fileLinkText = _frame.Root.FileInformationExpression.ToString();
+            fileLink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.Text, fileInformation.ToString()));
+            fileLink.Click += (s, a) => NavigateToFile();
+            fileLink.RequestNavigate += (s, a) => NavigateToFile();
+            yield return fileLink;
 
-                var success = NavigateToSymbol(symbol, cancellationToken);
-
-                if (!success)
-                {
-                    // Show some dialog?
-                    return;
-                }
-            }
-            catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
-            {
-            }
+            var trailingTrivia = GetTrailingTrivia(fileInformation);
+            yield return MakeClassifiedRun(ClassificationTypeNames.Text, CreateString(trailingTrivia));
         }
 
-        private bool NavigateToSymbol(ISymbol symbol, CancellationToken cancellationToken)
-            => GoToDefinitionHelpers.TryGoToDefinition(
-                    symbol,
-                    _workspace.CurrentSolution,
-                    _threadingContext,
-                    _streamingPresenter,
-                    thirdPartyNavigationAllowed: true,
-                    cancellationToken: cancellationToken);
+        //
+        // Don't lose the trailing trivia text
+        //
+        yield return MakeClassifiedRun(ClassificationTypeNames.Text, _frame.Root.EndOfLineToken.ToFullString());
+    }
 
-        public void NavigateToFile()
+    private (TextDocument? document, int lineNumber) GetDocumentAndLine()
+    {
+        if (_cachedDocument is not null)
         {
-            var cancellationToken = _threadingContext.DisposalToken;
-            Task.Run(() => NavigateToFileAsync(cancellationToken), cancellationToken).ReportNonFatalErrorAsync();
-        }
-
-        public async Task NavigateToFileAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                var (document, lineNumber) = GetDocumentAndLine();
-
-                if (document is not null)
-                {
-                    // While navigating do not activate the tab, which will change focus from the tool window
-                    var options = _workspace.Options
-                            .WithChangedOption(new OptionKey(NavigationOptions.PreferProvisionalTab), true)
-                            .WithChangedOption(new OptionKey(NavigationOptions.ActivateTab), false);
-
-                    var sourceText = await document.GetTextAsync(cancellationToken).ConfigureAwait(false);
-
-                    // If the line number is larger than the total lines in the file
-                    // then just go to the end of the file (lines count). This can happen
-                    // if the file changed between the stack trace being looked at and the current
-                    // version of the file.
-                    lineNumber = Math.Min(sourceText.Lines.Count, lineNumber);
-
-                    var navigationService = _workspace.Services.GetService<IDocumentNavigationService>();
-                    if (navigationService is null)
-                    {
-                        return;
-                    }
-
-                    await _threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
-                    navigationService.TryNavigateToLineAndOffset(_workspace, document.Id, lineNumber - 1, 0, cancellationToken);
-                }
-            }
-            catch (Exception ex) when (FatalError.ReportAndCatchUnlessCanceled(ex, cancellationToken))
-            {
-            }
-        }
-
-        protected override IEnumerable<Inline> CreateInlines()
-        {
-            yield return MakeClassifiedRun(ClassificationTypeNames.Text, _frame.GetTextBeforeType());
-
-            var classLink = new Hyperlink();
-            classLink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.ClassName, _frame.GetQualifiedTypeText()));
-            classLink.Click += (s, a) => NavigateToClass();
-            classLink.RequestNavigate += (s, a) => NavigateToClass();
-            yield return classLink;
-
-            var methodLink = new Hyperlink();
-            methodLink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.MethodName, _frame.GetMethodText()));
-            methodLink.Click += (s, a) => NavigateToSymbol();
-            methodLink.RequestNavigate += (s, a) => NavigateToSymbol();
-            yield return methodLink;
-
-            if (_frame.FileSpan != default)
-            {
-                var textBetween = _frame.GetTextBetweenTypeAndFile();
-                if (textBetween is not null)
-                {
-                    yield return MakeClassifiedRun(ClassificationTypeNames.Text, textBetween);
-                }
-
-                var fileText = _frame.GetFileText();
-                RoslynDebug.AssertNotNull(fileText);
-
-                var fileHyperlink = new Hyperlink();
-                fileHyperlink.Inlines.Add(MakeClassifiedRun(ClassificationTypeNames.Text, fileText));
-                fileHyperlink.RequestNavigate += (s, e) => NavigateToFile();
-                fileHyperlink.Click += (s, e) => NavigateToFile();
-                yield return fileHyperlink;
-            }
-
-            yield return MakeClassifiedRun(ClassificationTypeNames.Text, _frame.GetTrailingText());
-        }
-
-        private (Document? document, int lineNumber) GetDocumentAndLine()
-        {
-            if (_cachedDocument is not null)
-            {
-                return (_cachedDocument, _cachedLineNumber);
-            }
-
-            (_cachedDocument, _cachedLineNumber) = _frame.GetDocumentAndLine(_workspace.CurrentSolution);
             return (_cachedDocument, _cachedLineNumber);
         }
 
-        private async Task<ISymbol?> GetSymbolAsync(CancellationToken cancellationToken)
-        {
-            if (_cachedSymbol is not null)
-            {
-                return _cachedSymbol;
-            }
+        (_cachedDocument, _cachedLineNumber) = _stackExplorerService.GetDocumentAndLine(_workspace.CurrentSolution, _frame);
+        return (_cachedDocument, _cachedLineNumber);
+    }
 
-            _cachedSymbol = await _frame.ResolveSymbolAsync(_workspace.CurrentSolution, cancellationToken).ConfigureAwait(false);
-            return _cachedSymbol;
+    private async Task<DefinitionItem?> GetDefinitionAsync(StackFrameSymbolPart symbolPart, CancellationToken cancellationToken)
+    {
+        if (_definitionCache.TryGetValue(symbolPart, out var definition) && definition is not null)
+        {
+            return definition;
         }
+
+        _definitionCache[symbolPart] = await _stackExplorerService.TryFindDefinitionAsync(_workspace.CurrentSolution, _frame, symbolPart, cancellationToken).ConfigureAwait(false);
+        return _definitionCache[symbolPart];
+    }
+
+    private static ImmutableArray<StackFrameTrivia> GetLeadingTrivia(StackFrameNode node)
+    {
+        if (node.ChildCount == 0)
+        {
+            return [];
+        }
+
+        var child = node[0];
+        if (child.IsNode)
+        {
+            return GetLeadingTrivia(child.Node);
+        }
+
+        return child.Token.LeadingTrivia;
+    }
+
+    private static ImmutableArray<StackFrameTrivia> GetTrailingTrivia(StackFrameNode node)
+    {
+        if (node.ChildCount == 0)
+        {
+            return [];
+        }
+
+        var child = node[^1];
+        if (child.IsNode)
+        {
+            return GetTrailingTrivia(child.Node);
+        }
+
+        return child.Token.TrailingTrivia;
+    }
+
+    /// <summary>
+    /// Depth first traversal of the descendents of a node to the tokens
+    /// </summary>
+    private static void GetLeafTokens(StackFrameNode node, ArrayBuilder<StackFrameToken> builder)
+    {
+        foreach (var child in node)
+        {
+            if (child.IsNode)
+            {
+                GetLeafTokens(child.Node, builder);
+            }
+            else
+            {
+                builder.Add(child.Token);
+            }
+        }
+    }
+
+    private static string CreateString(ImmutableArray<StackFrameTrivia> triviaList)
+    {
+        using var _ = PooledStringBuilder.GetInstance(out var sb);
+        foreach (var trivia in triviaList)
+        {
+            sb.Append(trivia.ToString());
+        }
+
+        return sb.ToString();
     }
 }

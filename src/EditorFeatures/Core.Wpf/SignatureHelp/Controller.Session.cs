@@ -4,8 +4,7 @@
 
 #nullable disable
 
-using System.Threading.Tasks;
-using Roslyn.Utilities;
+using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHelp
 {
@@ -14,21 +13,21 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         internal partial class Session : Session<Controller, Model, ISignatureHelpPresenterSession>
         {
             public Session(Controller controller, ISignatureHelpPresenterSession presenterSession)
-                : base(controller, new ModelComputation<Model>(controller.ThreadingContext, controller, TaskScheduler.Default), presenterSession)
+                : base(controller, new ModelComputation<Model>(controller.ThreadingContext, controller), presenterSession)
             {
                 this.PresenterSession.ItemSelected += OnPresenterSessionItemSelected;
             }
 
             public override void Stop()
             {
-                AssertIsForeground();
+                this.Computation.ThreadingContext.ThrowIfNotOnUIThread();
                 this.PresenterSession.ItemSelected -= OnPresenterSessionItemSelected;
                 base.Stop();
             }
 
             private void OnPresenterSessionItemSelected(object sender, SignatureHelpItemEventArgs e)
             {
-                AssertIsForeground();
+                this.Computation.ThreadingContext.ThrowIfNotOnUIThread();
                 Contract.ThrowIfFalse(ReferenceEquals(this.PresenterSession, sender));
 
                 SetModelExplicitlySelectedItem(m => e.SignatureHelpItem);

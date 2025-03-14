@@ -8,8 +8,8 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis.Editor.UnitTests.CodeActions;
-using Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces;
 using Microsoft.CodeAnalysis.ExtractInterface;
 using Microsoft.CodeAnalysis.Notification;
 using Microsoft.CodeAnalysis.Shared.Extensions;
@@ -24,7 +24,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
             typeof(TestExtractInterfaceOptionsService));
 
         private readonly TestHostDocument _testDocument;
-        public TestWorkspace Workspace { get; }
+        public EditorTestWorkspace Workspace { get; }
         public Document ExtractFromDocument { get; }
         public AbstractExtractInterfaceService ExtractInterfaceService { get; }
         public Solution OriginalSolution { get; }
@@ -38,20 +38,18 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
             ParseOptions parseOptions = null,
             OptionsCollection options = null)
         {
-            var workspace = languageName == LanguageNames.CSharp
-                ? TestWorkspace.CreateCSharp(markup, composition: Composition, compilationOptions: compilationOptions, parseOptions: parseOptions)
-                : TestWorkspace.CreateVisualBasic(markup, composition: Composition, compilationOptions: compilationOptions, parseOptions: parseOptions);
-
-            if (options != null)
-            {
-                foreach (var kvp in options)
-                    workspace.SetOptions(workspace.Options.WithChangedOption(kvp.Key, kvp.Value));
-            }
+            var workspace =
+                markup.Trim().StartsWith("<Workspace>")
+                    ? EditorTestWorkspace.CreateWorkspace(XElement.Parse(markup), composition: Composition)
+                    : languageName == LanguageNames.CSharp
+                        ? EditorTestWorkspace.CreateCSharp(markup, composition: Composition, compilationOptions: compilationOptions, parseOptions: parseOptions)
+                        : EditorTestWorkspace.CreateVisualBasic(markup, composition: Composition, compilationOptions: compilationOptions, parseOptions: parseOptions);
+            workspace.SetAnalyzerFallbackAndGlobalOptions(options);
 
             return new ExtractInterfaceTestState(workspace);
         }
 
-        public ExtractInterfaceTestState(TestWorkspace workspace)
+        public ExtractInterfaceTestState(EditorTestWorkspace workspace)
         {
             Workspace = workspace;
 
@@ -71,7 +69,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
         {
             get
             {
-                return (TestExtractInterfaceOptionsService)ExtractFromDocument.Project.Solution.Workspace.Services.GetService<IExtractInterfaceOptionsService>();
+                return (TestExtractInterfaceOptionsService)ExtractFromDocument.Project.Solution.Services.GetService<IExtractInterfaceOptionsService>();
             }
         }
 
@@ -103,6 +101,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
                 ExtractFromDocument,
                 new TextSpan(_testDocument.CursorPosition.Value, 1),
                 CancellationToken.None);
+
             var action = actions.Single();
 
             var options = (ExtractInterfaceOptionsResult)action.GetOptions(CancellationToken.None);
@@ -113,7 +112,8 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
                 options.FileName,
                 ExtractInterfaceOptionsResult.ExtractLocation.SameFile);
 
-            var operations = await action.GetOperationsAsync(changedOptions, CancellationToken.None);
+            var operations = await action.GetOperationsAsync(
+                this.OriginalSolution, changedOptions, CodeAnalysisProgress.None, CancellationToken.None);
             foreach (var operation in operations)
             {
                 operation.Apply(Workspace, CancellationToken.None);
@@ -124,10 +124,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
 
         public void Dispose()
         {
-            if (Workspace != null)
-            {
-                Workspace.Dispose();
-            }
+            Workspace?.Dispose();
         }
     }
 }

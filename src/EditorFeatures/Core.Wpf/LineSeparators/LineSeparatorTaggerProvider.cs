@@ -2,20 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable disable
-
 using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Editor.Implementation.Tagging;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
-using Microsoft.CodeAnalysis.Editor.Shared.Options;
 using Microsoft.CodeAnalysis.Editor.Shared.Tagging;
-using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Editor.Tagging;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Internal.Log;
+using Microsoft.CodeAnalysis.LineSeparators;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Shared.TestHooks;
@@ -25,7 +23,6 @@ using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
-using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.LineSeparators
 {
@@ -37,23 +34,21 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.LineSeparators
     [TagType(typeof(LineSeparatorTag))]
     [ContentType(ContentTypeNames.CSharpContentType)]
     [ContentType(ContentTypeNames.VisualBasicContentType)]
-    internal partial class LineSeparatorTaggerProvider : AsynchronousTaggerProvider<LineSeparatorTag>
+    internal sealed partial class LineSeparatorTaggerProvider : AsynchronousTaggerProvider<LineSeparatorTag>
     {
         private readonly IEditorFormatMap _editorFormatMap;
 
-        protected override IEnumerable<PerLanguageOption2<bool>> PerLanguageOptions => SpecializedCollections.SingletonEnumerable(FeatureOnOffOptions.LineSeparator);
+        protected sealed override ImmutableArray<IOption2> Options { get; } = [];
 
-        private readonly object _lineSeperatorTagGate = new object();
+        private readonly object _lineSeparatorTagGate = new();
         private LineSeparatorTag _lineSeparatorTag;
 
         [ImportingConstructor]
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
         public LineSeparatorTaggerProvider(
-            IThreadingContext threadingContext,
-            IEditorFormatMapService editorFormatMapService,
-            IGlobalOptionService globalOptions,
-            IAsynchronousOperationListenerProvider listenerProvider)
-            : base(threadingContext, globalOptions, listenerProvider.GetListener(FeatureAttribute.LineSeparators))
+            TaggerHost taggerHost,
+            IEditorFormatMapService editorFormatMapService)
+            : base(taggerHost, FeatureAttribute.LineSeparators)
         {
             _editorFormatMap = editorFormatMapService.GetEditorFormatMap("text");
             _editorFormatMap.FormatMappingChanged += OnFormatMappingChanged;
@@ -64,14 +59,14 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.LineSeparators
 
         private void OnFormatMappingChanged(object sender, FormatItemsEventArgs e)
         {
-            lock (_lineSeperatorTagGate)
+            lock (_lineSeparatorTagGate)
             {
                 _lineSeparatorTag = new LineSeparatorTag(_editorFormatMap);
             }
         }
 
         protected override ITaggerEventSource CreateEventSource(
-            ITextView textView, ITextBuffer subjectBuffer)
+            ITextView? textView, ITextBuffer subjectBuffer)
         {
             return TaggerEventSources.Compose(
                 new EditorFormatMapChangedEventSource(_editorFormatMap),
@@ -83,33 +78,40 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.LineSeparators
         {
             var document = documentSnapshotSpan.Document;
             if (document == null)
-            {
                 return;
-            }
 
-            if (!GlobalOptions.GetOption(FeatureOnOffOptions.LineSeparator, document.Project.Language))
-            {
+            if (!GlobalOptions.GetOption(LineSeparatorsOptionsStorage.LineSeparator, document.Project.Language))
                 return;
-            }
-
-            LineSeparatorTag tag;
-            lock (_lineSeperatorTagGate)
-            {
-                tag = _lineSeparatorTag;
-            }
 
             using (Logger.LogBlock(FunctionId.Tagger_LineSeparator_TagProducer_ProduceTags, cancellationToken))
             {
                 var snapshotSpan = documentSnapshotSpan.SnapshotSpan;
                 var lineSeparatorService = document.GetLanguageService<ILineSeparatorService>();
+                if (lineSeparatorService == null)
+                    return;
+
                 var lineSeparatorSpans = await lineSeparatorService.GetLineSeparatorsAsync(document, snapshotSpan.Span.ToTextSpan(), cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
 
-                foreach (var span in lineSeparatorSpans)
+                if (lineSeparatorSpans.Length == 0)
+                    return;
+
+                LineSeparatorTag tag;
+                lock (_lineSeparatorTagGate)
                 {
-                    context.AddTag(new TagSpan<LineSeparatorTag>(span.ToSnapshotSpan(snapshotSpan.Snapshot), tag));
+                    tag = _lineSeparatorTag;
                 }
+
+                foreach (var span in lineSeparatorSpans)
+                    context.AddTag(new TagSpan<LineSeparatorTag>(span.ToSnapshotSpan(snapshotSpan.Snapshot), tag));
             }
         }
+
+        /// <summary>
+        /// We create and cache a separator tag to use (unless the format mapping changes).  So we can just use identity
+        /// comparisons here.
+        /// </summary>
+        protected override bool TagEquals(LineSeparatorTag tag1, LineSeparatorTag tag2)
+            => tag1 == tag2;
     }
 }

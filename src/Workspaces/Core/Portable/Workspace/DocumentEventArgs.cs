@@ -5,18 +5,16 @@
 #nullable disable
 
 using System;
-using Roslyn.Utilities;
 
-namespace Microsoft.CodeAnalysis
+namespace Microsoft.CodeAnalysis;
+
+public class DocumentEventArgs : EventArgs
 {
-    public class DocumentEventArgs : EventArgs
-    {
-        public Document Document { get; }
+    public Document Document { get; }
 
-        public DocumentEventArgs(Document document)
-        {
-            Contract.ThrowIfNull(document);
-            this.Document = document;
-        }
+    public DocumentEventArgs(Document document)
+    {
+        Contract.ThrowIfNull(document);
+        this.Document = document;
     }
 }

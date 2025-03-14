@@ -8,13 +8,13 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.AddImports;
+using Microsoft.CodeAnalysis.AddImport;
 using Microsoft.CodeAnalysis.CodeStyle;
-using Microsoft.CodeAnalysis.CSharp.CodeStyle;
+using Microsoft.CodeAnalysis.CSharp.Formatting;
+using Microsoft.CodeAnalysis.CSharp.Simplification;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Simplification;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Roslyn.Test.Utilities;
@@ -35,7 +35,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests.Editing
                     "test",
                     "test.dll",
                     LanguageNames.CSharp,
-                    metadataReferences: new[] { TestMetadata.Net451.mscorlib }));
+                    metadataReferences: [NetFramework.mscorlib]));
 
             var doc = emptyProject.AddDocument("test.cs", code);
 
@@ -60,10 +60,9 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests.Editing
 
         private static Task TestNoImportsAddedAsync(
             string initialText,
-            bool useSymbolAnnotations,
-            Func<OptionSet, OptionSet> optionsTransform = null)
+            bool useSymbolAnnotations)
         {
-            return TestAsync(initialText, initialText, initialText, useSymbolAnnotations, optionsTransform, performCheck: false);
+            return TestAsync(initialText, initialText, initialText, useSymbolAnnotations, performCheck: false);
         }
 
         private static async Task TestAsync(
@@ -71,34 +70,40 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests.Editing
             string importsAddedText,
             string simplifiedText,
             bool useSymbolAnnotations,
-            Func<OptionSet, OptionSet> optionsTransform = null,
+            bool placeSystemNamespaceFirst = true,
+            bool placeImportsInsideNamespaces = false,
             bool performCheck = true)
         {
             var doc = await GetDocument(initialText, useSymbolAnnotations);
-            OptionSet options = await doc.GetOptionsAsync();
-            if (optionsTransform != null)
+
+            var addImportOptions = new AddImportPlacementOptions()
             {
-                options = optionsTransform(options);
-            }
+                PlaceSystemNamespaceFirst = placeSystemNamespaceFirst,
+                UsingDirectivePlacement = new CodeStyleOption2<AddImportPlacement>(placeImportsInsideNamespaces ? AddImportPlacement.InsideNamespace : AddImportPlacement.OutsideNamespace, NotificationOption2.None),
+            };
+
+            var formattingOptions = CSharpSyntaxFormattingOptions.Default;
+
+            var simplifierOptions = CSharpSimplifierOptions.Default;
 
             var imported = useSymbolAnnotations
-                ? await ImportAdder.AddImportsFromSymbolAnnotationAsync(doc, options)
-                : await ImportAdder.AddImportsFromSyntaxesAsync(doc, options);
+                ? await ImportAdder.AddImportsFromSymbolAnnotationAsync(doc, addImportOptions, CancellationToken.None)
+                : await ImportAdder.AddImportsFromSyntaxesAsync(doc, addImportOptions, CancellationToken.None);
 
             if (importsAddedText != null)
             {
-                var formatted = await Formatter.FormatAsync(imported, SyntaxAnnotation.ElasticAnnotation, options);
+                var formatted = await Formatter.FormatAsync(imported, SyntaxAnnotation.ElasticAnnotation, formattingOptions, CancellationToken.None);
                 var actualText = (await formatted.GetTextAsync()).ToString();
                 Assert.Equal(importsAddedText, actualText);
             }
 
             if (simplifiedText != null)
             {
-                var reduced = await Simplifier.ReduceAsync(imported, options);
-                var formatted = await Formatter.FormatAsync(reduced, SyntaxAnnotation.ElasticAnnotation, options);
+                var reduced = await Simplifier.ReduceAsync(imported, simplifierOptions, CancellationToken.None);
+                var formatted = await Formatter.FormatAsync(reduced, SyntaxAnnotation.ElasticAnnotation, formattingOptions, CancellationToken.None);
 
                 var actualText = (await formatted.GetTextAsync()).ToString();
-                Assert.Equal(simplifiedText, actualText);
+                AssertEx.EqualOrDiff(simplifiedText, actualText);
             }
 
             if (performCheck)
@@ -109,10 +114,10 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests.Editing
         }
 
         public static object[][] TestAllData =
-        {
-            new object[] { false },
-            new object[] { true },
-        };
+        [
+            [false],
+            [true],
+        ];
 
         [Theory, MemberData(nameof(TestAllData))]
         public async Task TestAddImport(bool useSymbolAnnotations)
@@ -167,7 +172,7 @@ class C
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        public async Task TestDontAddSystemImportFirst(bool useSymbolAnnotations)
+        public async Task TestDoNotAddSystemImportFirst(bool useSymbolAnnotations)
         {
             await TestAsync(
 @"using N;
@@ -193,7 +198,7 @@ class C
     public List<int> F;
 }",
                 useSymbolAnnotations,
-                options => options.WithChangedOption(GenerationOptions.PlaceSystemNamespaceFirst, LanguageNames.CSharp, false)
+                placeSystemNamespaceFirst: false
 );
         }
 
@@ -299,7 +304,8 @@ class C
     public System.Int32 F;
 }",
 
-@"class C
+@"
+class C
 {
     public int F;
 }", useSymbolAnnotations: false);
@@ -481,7 +487,8 @@ class C
     public N.C F;
 }",
 
-@"namespace N
+@"
+namespace N
 {
     class C
     {
@@ -495,7 +502,7 @@ class C
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(8797, "https://github.com/dotnet/roslyn/issues/8797")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/8797")]
         public async Task TestBannerTextRemainsAtTopOfDocumentWithoutExistingImports(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -535,7 +542,7 @@ class C
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(8797, "https://github.com/dotnet/roslyn/issues/8797")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/8797")]
         public async Task TestBannerTextRemainsAtTopOfDocumentWithExistingImports(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -579,7 +586,7 @@ class C
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(8797, "https://github.com/dotnet/roslyn/issues/8797")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/8797")]
         public async Task TestLeadingWhitespaceLinesArePreserved(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -747,7 +754,7 @@ namespace N
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(9228, "https://github.com/dotnet/roslyn/issues/9228")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/9228")]
         public async Task TestDoNotAddDuplicateImportIfNamespaceIsDefinedInSourceAndExternalAssembly(bool useSymbolAnnotations)
         {
             var externalCode =
@@ -774,16 +781,14 @@ class C
                     "test",
                     "test.dll",
                     LanguageNames.CSharp,
-                    metadataReferences: new[] { TestMetadata.Net451.mscorlib }));
+                    metadataReferences: [NetFramework.mscorlib]));
 
             var project = emptyProject
-                .AddMetadataReferences(new[] { otherAssemblyReference })
+                .AddMetadataReferences([otherAssemblyReference])
                 .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
             project = project.AddDocument("duplicate.cs", externalCode).Project;
             var document = project.AddDocument("test.cs", code);
-
-            var options = document.Project.Solution.Workspace.Options;
 
             var compilation = await document.Project.GetCompilationAsync(CancellationToken.None);
             var compilerDiagnostics = compilation.GetDiagnostics(CancellationToken.None);
@@ -801,12 +806,15 @@ class C
             editor.AddAttribute(p1SyntaxNode, attributeSyntax);
             var documentWithAttribute = editor.GetChangedDocument();
 
+            var addImportOptions = new AddImportPlacementOptions();
+            var formattingOptions = CSharpSyntaxFormattingOptions.Default;
+
             // Add namespace import.
             var imported = useSymbolAnnotations
-                ? await ImportAdder.AddImportsFromSymbolAnnotationAsync(documentWithAttribute, null, CancellationToken.None).ConfigureAwait(false)
-                : await ImportAdder.AddImportsFromSyntaxesAsync(documentWithAttribute, null, CancellationToken.None).ConfigureAwait(false);
+                ? await ImportAdder.AddImportsFromSymbolAnnotationAsync(documentWithAttribute, addImportOptions, CancellationToken.None).ConfigureAwait(false)
+                : await ImportAdder.AddImportsFromSyntaxesAsync(documentWithAttribute, addImportOptions, CancellationToken.None).ConfigureAwait(false);
 
-            var formatted = await Formatter.FormatAsync(imported, options);
+            var formatted = await Formatter.FormatAsync(imported, formattingOptions, CancellationToken.None);
             var actualText = (await formatted.GetTextAsync()).ToString();
 
             Assert.Equal(@"using System;
@@ -825,9 +833,9 @@ class C
             var tree = CSharpSyntaxTree.ParseText(code);
 
             var compilation = CSharpCompilation
-                .Create("test.dll", new[] { tree })
+                .Create("test.dll", [tree])
                 .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-                .AddReferences(TestMetadata.Net451.mscorlib);
+                .AddReferences(NetFramework.mscorlib);
 
             return compilation.ToMetadataReference();
         }
@@ -1047,7 +1055,7 @@ class C
 }", useSymbolAnnotations: true);
         }
 
-        [Fact, WorkItem(39641, "https://github.com/dotnet/roslyn/issues/39641")]
+        [Fact, WorkItem("https://github.com/dotnet/roslyn/issues/39641")]
         public async Task TestSafeWithMatchingSimpleNameInAllLocations()
         {
             await TestNoImportsAddedAsync(
@@ -1211,7 +1219,7 @@ namespace N
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(55746, "https://github.com/dotnet/roslyn/issues/55746")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/55746")]
         public async Task TestAddImport_InsideNamespace(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -1241,12 +1249,11 @@ namespace N
     {
         public List<int> F;
     }
-}", useSymbolAnnotations,
-    optionsTransform: o => o.WithChangedOption(CSharpCodeStyleOptions.PreferredUsingDirectivePlacement, new CodeStyleOption2<AddImportPlacement>(AddImportPlacement.InsideNamespace, NotificationOption2.Error)));
+}", useSymbolAnnotations, placeImportsInsideNamespaces: true);
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(55746, "https://github.com/dotnet/roslyn/issues/55746")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/55746")]
         public async Task TestAddImport_InsideNamespace_NoNamespace(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -1267,12 +1274,11 @@ class C
 class C
 {
     public List<int> F;
-}", useSymbolAnnotations,
-    optionsTransform: o => o.WithChangedOption(CSharpCodeStyleOptions.PreferredUsingDirectivePlacement, new CodeStyleOption2<AddImportPlacement>(AddImportPlacement.InsideNamespace, NotificationOption2.Error)));
+}", useSymbolAnnotations, placeImportsInsideNamespaces: true);
         }
 
         [Theory, MemberData(nameof(TestAllData))]
-        [WorkItem(55746, "https://github.com/dotnet/roslyn/issues/55746")]
+        [WorkItem("https://github.com/dotnet/roslyn/issues/55746")]
         public async Task TestAddImport_InsideNamespace_MultipleNamespaces(bool useSymbolAnnotations)
         {
             await TestAsync(
@@ -1311,8 +1317,7 @@ class C
             public List<int> F;
         }
     }
-}", useSymbolAnnotations,
-    optionsTransform: o => o.WithChangedOption(CSharpCodeStyleOptions.PreferredUsingDirectivePlacement, new CodeStyleOption2<AddImportPlacement>(AddImportPlacement.InsideNamespace, NotificationOption2.Error)));
+}", useSymbolAnnotations, placeImportsInsideNamespaces: true);
         }
 
         #endregion

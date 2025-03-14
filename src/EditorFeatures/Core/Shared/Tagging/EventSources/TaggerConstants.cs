@@ -6,35 +6,30 @@ using System;
 using Microsoft.CodeAnalysis.Editor.Tagging;
 using Microsoft.VisualStudio.Text;
 
-namespace Microsoft.CodeAnalysis.Editor.Shared.Tagging
+namespace Microsoft.CodeAnalysis.Editor.Shared.Tagging;
+
+internal static class TaggerConstants
 {
-    internal static class TaggerConstants
+    internal static TimeSpan ComputeTimeDelay(this TaggerDelay behavior, ITextBuffer textBufferOpt)
     {
-        internal const int NearImmediateDelay = 50;
-        internal const int ShortDelay = 250;
-        internal const int MediumDelay = 500;
-        internal const int IdleDelay = 1500;
-        internal const int NonFocusDelay = 3000;
-
-        internal static TimeSpan ComputeTimeDelay(this TaggerDelay behavior, ITextBuffer textBufferOpt)
+        if (TextBufferAssociatedViewService.AnyAssociatedViewHasFocus(textBufferOpt))
         {
-            if (TextBufferAssociatedViewService.AnyAssociatedViewHasFocus(textBufferOpt))
-            {
-                // TODO : should we remove TaggerBehavior enum all together and put NearImmediateDelay
-                // const in Interaction?
-                return ComputeTimeDelay(behavior);
-            }
-
-            return TimeSpan.FromMilliseconds(NonFocusDelay);
+            // TODO : should we remove TaggerBehavior enum all together and put NearImmediateDelay
+            // const in Interaction?
+            return ComputeTimeDelay(behavior);
         }
 
-        internal static TimeSpan ComputeTimeDelay(this TaggerDelay behavior)
-            => behavior switch
-            {
-                TaggerDelay.NearImmediate => TimeSpan.FromMilliseconds(NearImmediateDelay),
-                TaggerDelay.Short => TimeSpan.FromMilliseconds(ShortDelay),
-                TaggerDelay.Medium => TimeSpan.FromMilliseconds(MediumDelay),
-                _ => TimeSpan.FromMilliseconds(IdleDelay),
-            };
+        return DelayTimeSpan.NonFocus;
     }
+
+    internal static TimeSpan ComputeTimeDelay(this TaggerDelay behavior)
+        => behavior switch
+        {
+            TaggerDelay.NearImmediate => DelayTimeSpan.NearImmediate,
+            TaggerDelay.Short => DelayTimeSpan.Short,
+            TaggerDelay.Medium => DelayTimeSpan.Medium,
+            TaggerDelay.OnIdle => DelayTimeSpan.Idle,
+            TaggerDelay.OnIdleWithLongDelay => DelayTimeSpan.IdleWithLongDelay,
+            _ => DelayTimeSpan.NonFocus,
+        };
 }

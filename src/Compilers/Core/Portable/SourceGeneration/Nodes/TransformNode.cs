@@ -3,38 +3,57 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
+using Microsoft.CodeAnalysis.PooledObjects;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis
 {
     internal sealed class TransformNode<TInput, TOutput> : IIncrementalGeneratorNode<TOutput>
     {
-        private readonly Func<TInput, CancellationToken, ImmutableArray<TOutput>> _func;
-        private readonly IEqualityComparer<TOutput> _comparer;
-        private readonly IIncrementalGeneratorNode<TInput> _sourceNode;
+        private static readonly string? s_tableType = typeof(TOutput).FullName;
 
-        public TransformNode(IIncrementalGeneratorNode<TInput> sourceNode, Func<TInput, CancellationToken, TOutput> userFunc, IEqualityComparer<TOutput>? comparer = null)
-            : this(sourceNode, userFunc: (i, token) => ImmutableArray.Create(userFunc(i, token)), comparer)
+        private readonly Func<TInput, CancellationToken, ImmutableArray<TOutput>> _func;
+        private readonly IEqualityComparer<TOutput>? _comparer;
+        private readonly IIncrementalGeneratorNode<TInput> _sourceNode;
+        private readonly string? _name;
+        private readonly bool _wrapUserFunc;
+
+        public TransformNode(IIncrementalGeneratorNode<TInput> sourceNode, Func<TInput, CancellationToken, TOutput> userFunc, bool wrapUserFunc = false, IEqualityComparer<TOutput>? comparer = null, string? name = null)
+            : this(sourceNode, userFunc: (i, token) => ImmutableArray.Create(userFunc(i, token)), wrapUserFunc, comparer, name)
         {
         }
 
-        public TransformNode(IIncrementalGeneratorNode<TInput> sourceNode, Func<TInput, CancellationToken, ImmutableArray<TOutput>> userFunc, IEqualityComparer<TOutput>? comparer = null)
+        public TransformNode(IIncrementalGeneratorNode<TInput> sourceNode, Func<TInput, CancellationToken, ImmutableArray<TOutput>> userFunc, bool wrapUserFunc = false, IEqualityComparer<TOutput>? comparer = null, string? name = null)
         {
             _sourceNode = sourceNode;
             _func = userFunc;
-            _comparer = comparer ?? EqualityComparer<TOutput>.Default;
+            _wrapUserFunc = wrapUserFunc;
+            _comparer = comparer;
+            _name = name;
         }
 
-        public IIncrementalGeneratorNode<TOutput> WithComparer(IEqualityComparer<TOutput> comparer) => new TransformNode<TInput, TOutput>(_sourceNode, _func, comparer);
+        public IIncrementalGeneratorNode<TOutput> WithComparer(IEqualityComparer<TOutput> comparer)
+            => new TransformNode<TInput, TOutput>(_sourceNode, _func, _wrapUserFunc, comparer, _name);
 
-        public NodeStateTable<TOutput> UpdateStateTable(DriverStateTable.Builder builder, NodeStateTable<TOutput> previousTable, CancellationToken cancellationToken)
+        public IIncrementalGeneratorNode<TOutput> WithTrackingName(string name)
+            => new TransformNode<TInput, TOutput>(_sourceNode, _func, _wrapUserFunc, _comparer, name);
+
+        public NodeStateTable<TOutput> UpdateStateTable(DriverStateTable.Builder builder, NodeStateTable<TOutput>? previousTable, CancellationToken cancellationToken)
         {
             // grab the source inputs
             var sourceTable = builder.GetLatestStateTableForNode(_sourceNode);
-            if (sourceTable.IsCached)
+            if (sourceTable.IsCached && previousTable is not null)
             {
+                this.LogTables(_name, s_tableType, previousTable, previousTable, sourceTable);
+                if (builder.DriverState.TrackIncrementalSteps)
+                {
+                    return previousTable.CreateCachedTableWithUpdatedSteps(sourceTable, _name, _comparer);
+                }
                 return previousTable;
             }
 
@@ -44,26 +63,42 @@ namespace Microsoft.CodeAnalysis
             // - Added: perform transform and add
             // - Modified: perform transform and do element wise comparison with previous results
 
-            var newTable = previousTable.ToBuilder();
+            var totalEntryItemCount = sourceTable.GetTotalEntryItemCount();
+            var tableBuilder = builder.CreateTableBuilder(previousTable, _name, _comparer, totalEntryItemCount);
 
             foreach (var entry in sourceTable)
             {
-                if (entry.state == EntryState.Removed)
+                var inputs = tableBuilder.TrackIncrementalSteps ? ImmutableArray.Create((entry.Step!, entry.OutputIndex)) : default;
+                if (entry.State == EntryState.Removed)
                 {
-                    newTable.RemoveEntries();
+                    tableBuilder.TryRemoveEntries(TimeSpan.Zero, inputs);
                 }
-                else if (entry.state != EntryState.Cached || !newTable.TryUseCachedEntries())
+                else if (entry.State != EntryState.Cached || !tableBuilder.TryUseCachedEntries(TimeSpan.Zero, inputs))
                 {
+                    var stopwatch = SharedStopwatch.StartNew();
                     // generate the new entries
-                    var newOutputs = _func(entry.item, cancellationToken);
-
-                    if (entry.state != EntryState.Modified || !newTable.TryModifyEntries(newOutputs, _comparer))
+                    ImmutableArray<TOutput> newOutputs;
+                    try
                     {
-                        newTable.AddEntries(newOutputs, EntryState.Added);
+                        newOutputs = _func(entry.Item, cancellationToken);
+                    }
+                    catch (Exception e) when (_wrapUserFunc && !ExceptionUtilities.IsCurrentOperationBeingCancelled(e, cancellationToken))
+                    {
+                        throw new UserFunctionException(e);
+                    }
+
+                    if (entry.State != EntryState.Modified || !tableBuilder.TryModifyEntries(newOutputs, stopwatch.Elapsed, inputs, entry.State))
+                    {
+                        tableBuilder.AddEntries(newOutputs, EntryState.Added, stopwatch.Elapsed, inputs, entry.State);
                     }
                 }
             }
-            return newTable.ToImmutableAndFree();
+
+            // Can't assert anything about the count of items.  _func may have produced a different amount of items if
+            // it's not a 1:1 function.
+            var newTable = tableBuilder.ToImmutableAndFree();
+            this.LogTables(_name, s_tableType, previousTable, newTable, sourceTable);
+            return newTable;
         }
 
         public void RegisterOutput(IIncrementalGeneratorOutputNode output) => _sourceNode.RegisterOutput(output);

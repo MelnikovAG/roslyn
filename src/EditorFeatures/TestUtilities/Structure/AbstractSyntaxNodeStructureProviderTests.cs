@@ -8,7 +8,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Shared.Collections;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.Structure;
 using Xunit;
 
@@ -19,7 +19,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Structure
     {
         internal abstract AbstractSyntaxStructureProvider CreateProvider();
 
-        internal sealed override async Task<ImmutableArray<BlockSpan>> GetBlockSpansWorkerAsync(Document document, int position)
+        internal sealed override async Task<ImmutableArray<BlockSpan>> GetBlockSpansWorkerAsync(Document document, BlockStructureOptions options, int position)
         {
             var root = await document.GetSyntaxRootAsync(CancellationToken.None);
             var token = root.FindToken(position, findInsideTrivia: true);
@@ -41,11 +41,10 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.Structure
             }
 
             var outliner = CreateProvider();
-            using var actualRegions = TemporaryArray<BlockSpan>.Empty;
-            var options = BlockStructureOptions.From(document.Project);
+            using var _ = ArrayBuilder<BlockSpan>.GetInstance(out var actualRegions);
             // Calculate previousToken for tests the same way it is derived in production code
             var previousToken = root.DescendantNodesAndTokens(descendIntoTrivia: true).TakeWhile(nodeOrToken => nodeOrToken != node).LastOrDefault(nodeOrToken => nodeOrToken.IsToken).AsToken();
-            outliner.CollectBlockSpans(previousToken, node, ref actualRegions.AsRef(), options, CancellationToken.None);
+            outliner.CollectBlockSpans(previousToken, node, actualRegions, options, CancellationToken.None);
 
             // TODO: Determine why we get null outlining spans.
             return actualRegions.ToImmutableAndClear();

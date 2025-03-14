@@ -69,6 +69,12 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Options
             set { SetXmlOption(CodeStyleOptions2.PreferCoalesceExpression, value); }
         }
 
+        public string Style_PreferMethodGroupConversion
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.PreferMethodGroupConversion); }
+            set { SetXmlOption(CSharpCodeStyleOptions.PreferMethodGroupConversion, value); }
+        }
+
         public string Style_PreferNullPropagation
         {
             get { return GetXmlOption(CodeStyleOptions2.PreferNullPropagation); }
@@ -207,18 +213,6 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Options
             set { SetXmlOption(CodeStyleOptions2.PreferReadonly, value); }
         }
 
-        public int Style_PreferObjectInitializer_FadeOutCode
-        {
-            get { return GetBooleanOption(CodeStyleOptions2.PreferObjectInitializer_FadeOutCode); }
-            set { SetBooleanOption(CodeStyleOptions2.PreferObjectInitializer_FadeOutCode, value); }
-        }
-
-        public int Style_PreferCollectionInitializer_FadeOutCode
-        {
-            get { return GetBooleanOption(CodeStyleOptions2.PreferCollectionInitializer_FadeOutCode); }
-            set { SetBooleanOption(CodeStyleOptions2.PreferCollectionInitializer_FadeOutCode, value); }
-        }
-
         public string Style_PreferSimplifiedBooleanExpressions
         {
             get { return GetXmlOption(CodeStyleOptions2.PreferSimplifiedBooleanExpressions); }
@@ -269,8 +263,8 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Options
 
         public string Style_RequireAccessibilityModifiers
         {
-            get { return GetXmlOption(CodeStyleOptions2.RequireAccessibilityModifiers); }
-            set { SetXmlOption(CodeStyleOptions2.RequireAccessibilityModifiers, value); }
+            get { return GetXmlOption(CodeStyleOptions2.AccessibilityModifiersRequired); }
+            set { SetXmlOption(CodeStyleOptions2.AccessibilityModifiersRequired, value); }
         }
 
         public string Style_RemoveUnnecessarySuppressionExclusions
@@ -339,16 +333,34 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Options
             set { SetXmlOption(CSharpCodeStyleOptions.PreferredModifierOrder, value); }
         }
 
+        public string Style_PreferReadOnlyStruct
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.PreferReadOnlyStruct); }
+            set { SetXmlOption(CSharpCodeStyleOptions.PreferReadOnlyStruct, value); }
+        }
+
         public string Style_PreferStaticLocalFunction
         {
             get { return GetXmlOption(CSharpCodeStyleOptions.PreferStaticLocalFunction); }
             set { SetXmlOption(CSharpCodeStyleOptions.PreferStaticLocalFunction, value); }
         }
 
+        public string Style_PreferStaticAnonymousFunction
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.PreferStaticAnonymousFunction); }
+            set { SetXmlOption(CSharpCodeStyleOptions.PreferStaticAnonymousFunction, value); }
+        }
+
         public string Style_PreferSimpleUsingStatement
         {
             get { return GetXmlOption(CSharpCodeStyleOptions.PreferSimpleUsingStatement); }
             set { SetXmlOption(CSharpCodeStyleOptions.PreferSimpleUsingStatement, value); }
+        }
+
+        public string Style_PreferTopLevelStatements
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.PreferTopLevelStatements); }
+            set { SetXmlOption(CSharpCodeStyleOptions.PreferTopLevelStatements, value); }
         }
 
         public string Style_PreferLocalOverAnonymousFunction
@@ -403,6 +415,18 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Options
         {
             get { return GetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterColonInConstructorInitializer); }
             set { SetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterColonInConstructorInitializer, value); }
+        }
+
+        public string Style_AllowBlankLineAfterTokenInConditionalExpression
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterTokenInConditionalExpression); }
+            set { SetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterTokenInConditionalExpression, value); }
+        }
+
+        public string Style_AllowBlankLineAfterTokenInArrowExpressionClause
+        {
+            get { return GetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterTokenInArrowExpressionClause); }
+            set { SetXmlOption(CSharpCodeStyleOptions.AllowBlankLineAfterTokenInArrowExpressionClause, value); }
         }
 
         public string Style_NamespaceDeclarations
